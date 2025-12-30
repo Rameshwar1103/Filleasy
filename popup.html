@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filleasy - Smart Form Filler</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen" class="screen">
+    <div class="login-container">
+      <div class="logo">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="8" fill="#6366F1"/>
+          <path d="M24 14V34M14 24H34" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>Filleasy</h1>
+      <p class="subtitle">Smart Form Filler</p>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="master-password">Master Password</label>
+          <input type="password" id="master-password" placeholder="Enter master password" required>
+          <button type="button" class="password-toggle" id="password-toggle">👁️</button>
+        </div>
+        
+        <div id="login-error" class="error-message" style="display: none;"></div>
+        <div id="lockout-message" class="error-message" style="display: none;"></div>
+        
+        <button type="submit" class="btn btn-primary" id="login-btn">Unlock</button>
+        <button type="button" class="btn btn-link" id="setup-link">First time? Set up account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Setup Screen -->
+  <div id="setup-screen" class="screen" style="display: none;">
+    <div class="setup-container">
+      <h2>Welcome to Filleasy!</h2>
+      <p>Let's set up your secure account.</p>
+      
+      <form id="setup-form">
+        <div class="form-group">
+          <label for="setup-password">Create Master Password</label>
+          <input type="password" id="setup-password" placeholder="Enter master password" required>
+          <div id="password-strength" class="password-strength"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="setup-confirm">Confirm Master Password</label>
+          <input type="password" id="setup-confirm" placeholder="Confirm password" required>
+          <div id="password-match" class="password-match"></div>
+        </div>
+        
+        <div id="setup-error" class="error-message" style="display: none;"></div>
+        
+        <button type="submit" class="btn btn-primary" id="setup-btn">Create Account</button>
+        <button type="button" class="btn btn-link" id="back-to-login">Back to Login</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="dashboard-screen" class="screen" style="display: none;">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">
+        <h2>Filleasy</h2>
+        <span class="security-badge" id="security-status">🔒 Locked</span>
+      </div>
+      <button class="icon-btn" id="settings-btn" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 011.15.15l1.336 1.336a1 1 0 01.15 1.15l-.8 1.6L17 12.677V14a1 1 0 01-1 1h-1.323l-1.582 3.954-1.6.8a1 1 0 01-1.15-.15l-1.336-1.336a1 1 0 01-.15-1.15l.8-1.6L5 13.323V12a1 1 0 011-1h1.323l1.582-3.954.8-1.6a1 1 0 01.15-1.15l1.336-1.336a1 1 0 011.15-.15l1.6.8L15 5.323V4a1 1 0 011-1z" clip-rule="evenodd"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <button class="action-btn" id="fill-all-btn">
+        <span class="icon">🚀</span>
+        <span>Fill All Fields</span>
+      </button>
+      <button class="action-btn secondary" id="preview-btn">
+        <span class="icon">👁️</span>
+        <span>Preview & Edit</span>
+      </button>
+    </div>
+
+    <!-- Profile Preview -->
+    <div class="profile-preview card">
+      <div class="card-header">
+        <h3>Profile Preview</h3>
+        <button class="link-btn" id="edit-profile-btn">Edit</button>
+      </div>
+      <div class="profile-info" id="profile-preview">
+        <p class="empty-state">Loading profile...</p>
+      </div>
+    </div>
+
+    <!-- Custom Fields -->
+    <div class="custom-fields-section card">
+      <div class="card-header">
+        <h3>Custom Fields</h3>
+        <div class="header-actions">
+          <button class="icon-btn small" id="add-custom-field-btn" title="Add Field">+</button>
+          <button class="icon-btn small" id="import-template-btn" title="Import Template">📥</button>
+        </div>
+      </div>
+      <div id="custom-fields-list" class="custom-fields-list">
+        <p class="empty-state">No custom fields yet. Click + to add.</p>
+      </div>
+    </div>
+
+    <!-- Form Status -->
+    <div class="form-status card" id="form-status" style="display: none;">
+      <div class="status-content">
+        <span class="status-icon">📋</span>
+        <div>
+          <strong>Form Detected</strong>
+          <p>Ready to fill</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button class="link-btn" id="logout-btn">Lock Extension</button>
+      <span class="version">v1.0.0</span>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <!-- Add Custom Field Modal -->
+  <div id="custom-field-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Custom Field</h3>
+        <button class="icon-btn" id="close-modal-btn">×</button>
+      </div>
+      <form id="custom-field-form">
+        <div class="form-group">
+          <label for="field-key">Field Key (unique identifier)</label>
+          <input type="text" id="field-key" placeholder="e.g., familyIncome" required>
+        </div>
+        <div class="form-group">
+          <label for="field-label">Display Label</label>
+          <input type="text" id="field-label" placeholder="e.g., Family Annual Income" required>
+        </div>
+        <div class="form-group">
+          <label for="field-value">Value</label>
+          <input type="text" id="field-value" placeholder="Enter value">
+        </div>
+        <div class="form-group">
+          <label for="field-type">Field Type</label>
+          <select id="field-type">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="date">Date</option>
+            <option value="dropdown">Dropdown</option>
+            <option value="longText">Long Text</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="field-category">Category</label>
+          <select id="field-category">
+            <option value="General">General</option>
+            <option value="Academic">Academic</option>
+            <option value="Financial">Financial</option>
+            <option value="Documents">Documents</option>
+            <option value="Personal">Personal</option>
+            <option value="Scholarship">Scholarship</option>
+            <option value="Employment">Employment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-field-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Field</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="preview-modal" class="modal" style="display: none;">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3>Preview Fill Mappings</h3>
+        <button class="icon-btn" id="close-preview-btn">×</button>
+      </div>
+      <div id="preview-content" class="preview-content">
+        <!-- Preview mappings will be inserted here -->
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="cancel-preview-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-fill-btn">Fill Form</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Modal -->
+  <div id="template-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Select Scholarship Template</h3>
+        <button class="icon-btn" id="close-template-btn">×</button>
+      </div>
+      <div id="template-list" class="template-list">
+        <!-- Templates will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/profile-manager.js"></script>
+  <script src="lib/crypto-utils.js"></script>
+  <script src="lib/storage-manager.js"></script>
+  <script src="lib/auth-manager.js"></script>
+  <script src="lib/custom-fields-manager.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+

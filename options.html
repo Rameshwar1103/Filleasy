@@ -1,0 +1,691 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filleasy - Settings & Profile</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>Filleasy Settings</h1>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="profile">Profile</button>
+        <button class="tab-btn" data-tab="custom">Custom Fields</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+        <button class="tab-btn" data-tab="ml">ML Stats</button>
+        <button class="tab-btn" data-tab="security">Security</button>
+      </nav>
+    </header>
+
+    <!-- Profile Tab -->
+    <div id="profile-tab" class="tab-content active">
+      <form id="profile-form">
+        <!-- Personal Information -->
+        <section class="section">
+          <h2>Personal Information</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="firstName">First Name *</label>
+              <input type="text" id="firstName" required>
+            </div>
+            <div class="form-group">
+              <label for="middleName">Middle Name</label>
+              <input type="text" id="middleName">
+            </div>
+            <div class="form-group">
+              <label for="lastName">Last Name *</label>
+              <input type="text" id="lastName" required>
+            </div>
+            <div class="form-group">
+              <label for="fullName">Full Name / Student Name</label>
+              <input type="text" id="fullName" placeholder="Auto-filled from First + Middle + Last">
+            </div>
+            <div class="form-group">
+              <label for="dateOfBirth">Date of Birth</label>
+              <input type="date" id="dateOfBirth">
+            </div>
+            <div class="form-group">
+              <label for="gender">Gender</label>
+              <select id="gender">
+                <option value="">Select</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="bloodGroup">Blood Group</label>
+              <select id="bloodGroup">
+                <option value="">Select</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" placeholder="10 digits">
+            </div>
+            <div class="form-group">
+              <label for="alternatePhone">Alternate Phone / Parent Contact</label>
+              <input type="tel" id="alternatePhone" placeholder="10 digits">
+            </div>
+            <div class="form-group">
+              <label for="email">Email (Personal) *</label>
+              <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+              <label for="collegeEmail">College Email</label>
+              <input type="email" id="collegeEmail" placeholder="student@college.edu">
+            </div>
+            <div class="form-group">
+              <label for="studentId">Student ID</label>
+              <input type="text" id="studentId" placeholder="Student ID">
+            </div>
+            <div class="form-group">
+              <label for="prnNumber">PRN / University PRN Number</label>
+              <input type="text" id="prnNumber" placeholder="PRN Number">
+            </div>
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select id="category">
+                <option value="">Select</option>
+                <option value="General">General</option>
+                <option value="OBC">OBC</option>
+                <option value="SC">SC</option>
+                <option value="ST">ST</option>
+                <option value="EWS">EWS</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="physicallyChallenged">Physically Challenged</label>
+              <select id="physicallyChallenged">
+                <option value="">Select</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="photoLink">Photo Upload (Link)</label>
+              <input type="url" id="photoLink" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label for="aadhaarNumber">Aadhaar Number</label>
+              <input type="text" id="aadhaarNumber" placeholder="12 digits" maxlength="12">
+            </div>
+            <div class="form-group">
+              <label for="pan">PAN (Optional)</label>
+              <input type="text" id="pan" placeholder="ABCDE1234F" maxlength="10">
+            </div>
+          </div>
+        </section>
+
+        <!-- Address -->
+        <section class="section">
+          <h2>Address</h2>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label for="house">House/Apartment Number</label>
+              <input type="text" id="house">
+            </div>
+            <div class="form-group full-width">
+              <label for="street">Street Address</label>
+              <input type="text" id="street">
+            </div>
+            <div class="form-group full-width">
+              <label for="currentAddress">Current Address</label>
+              <input type="text" id="currentAddress" placeholder="Current/Present Address">
+            </div>
+            <div class="form-group full-width">
+              <label for="permanentAddress">Permanent Address</label>
+              <input type="text" id="permanentAddress" placeholder="Permanent Address">
+            </div>
+            <div class="form-group">
+              <label for="city">City</label>
+              <input type="text" id="city">
+            </div>
+            <div class="form-group">
+              <label for="state">State</label>
+              <input type="text" id="state">
+            </div>
+            <div class="form-group">
+              <label for="pin">PIN Code</label>
+              <input type="text" id="pin" placeholder="6 digits" maxlength="6">
+            </div>
+            <div class="form-group">
+              <label for="country">Country</label>
+              <input type="text" id="country" value="India">
+            </div>
+          </div>
+        </section>
+
+        <!-- Academic Information -->
+        <section class="section">
+          <h2>Academic Information</h2>
+          <h3>10th Standard</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="tenthBoard">Board</label>
+              <input type="text" id="tenthBoard">
+            </div>
+            <div class="form-group">
+              <label for="tenthYear">Year</label>
+              <input type="number" id="tenthYear" min="1990" max="2030">
+            </div>
+            <div class="form-group">
+              <label for="tenthPercentage">Percentage</label>
+              <input type="number" id="tenthPercentage" min="0" max="100" step="0.01">
+            </div>
+          </div>
+
+          <h3>12th Standard</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="twelfthBoard">Board</label>
+              <input type="text" id="twelfthBoard">
+            </div>
+            <div class="form-group">
+              <label for="twelfthYear">Year</label>
+              <input type="number" id="twelfthYear" min="1990" max="2030">
+            </div>
+            <div class="form-group">
+              <label for="twelfthPercentage">Percentage</label>
+              <input type="number" id="twelfthPercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="twelfthStream">Stream</label>
+              <select id="twelfthStream">
+                <option value="">Select</option>
+                <option value="Science">Science</option>
+                <option value="Commerce">Commerce</option>
+                <option value="Arts">Arts</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <h3>College/University</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="collegeName">College/University Name</label>
+              <input type="text" id="collegeName">
+            </div>
+            <div class="form-group">
+              <label for="course">Course/Degree</label>
+              <input type="text" id="course" placeholder="e.g., B.Tech, B.Sc">
+            </div>
+            <div class="form-group">
+              <label for="branch">Branch/Department</label>
+              <input type="text" id="branch" placeholder="e.g., Computer Science">
+            </div>
+            <div class="form-group">
+              <label for="specialization">Specialization</label>
+              <input type="text" id="specialization" placeholder="e.g., AI/ML, Cloud Computing">
+            </div>
+            <div class="form-group">
+              <label for="semester">Current Semester</label>
+              <input type="text" id="semester" placeholder="e.g., 5th">
+            </div>
+            <div class="form-group">
+              <label for="year">Current Year</label>
+              <input type="text" id="year" placeholder="e.g., 3rd Year">
+            </div>
+            <div class="form-group">
+              <label for="yearOfStudy">Year of Study</label>
+              <input type="text" id="yearOfStudy" placeholder="e.g., 3rd Year">
+            </div>
+            <div class="form-group">
+              <label for="cgpa">CGPA</label>
+              <input type="number" id="cgpa" min="0" max="10" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="sgpa">SGPA</label>
+              <input type="number" id="sgpa" min="0" max="10" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="aggregatePercentage">Aggregate Percentage</label>
+              <input type="number" id="aggregatePercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="percentage">Percentage</label>
+              <input type="number" id="percentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="rollNumber">Roll Number</label>
+              <input type="text" id="rollNumber">
+            </div>
+            <div class="form-group">
+              <label for="registrationNumber">Registration Number</label>
+              <input type="text" id="registrationNumber">
+            </div>
+          </div>
+
+          <h3>Year-wise Performance</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="firstYearPercentage">1st Year Percentage</label>
+              <input type="number" id="firstYearPercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="secondYearPercentage">2nd Year Percentage</label>
+              <input type="number" id="secondYearPercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="thirdYearPercentage">3rd Year Percentage</label>
+              <input type="number" id="thirdYearPercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="fourthYearPercentage">4th Year Percentage</label>
+              <input type="number" id="fourthYearPercentage" min="0" max="100" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="graduationPercentage">Graduation Percentage</label>
+              <input type="number" id="graduationPercentage" min="0" max="100" step="0.01">
+            </div>
+          </div>
+
+          <h3>Backlogs / Arrears</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="backlogs">Backlogs (Yes/No)</label>
+              <select id="backlogs">
+                <option value="">Select</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="backlogsCount">Backlogs Count</label>
+              <input type="number" id="backlogsCount" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="arrears">Arrears (Yes/No)</label>
+              <select id="arrears">
+                <option value="">Select</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="arrearsCount">Arrears Count</label>
+              <input type="number" id="arrearsCount" min="0" placeholder="0">
+            </div>
+          </div>
+        </section>
+
+        <!-- Technical Skills Section -->
+        <section class="section">
+          <h2>Technical Skills</h2>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label for="programmingLanguages">Programming Languages Known</label>
+              <textarea id="programmingLanguages" rows="2" placeholder="e.g., Java, Python, C++, JavaScript"></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label for="technicalSkills">Technical Skills / Technologies</label>
+              <textarea id="technicalSkills" rows="3" placeholder="e.g., React, Node.js, MongoDB, AWS"></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label for="technicalAchievements">Technical Achievements</label>
+              <textarea id="technicalAchievements" rows="3" placeholder="Describe your technical achievements"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="projectsCount">Projects Count</label>
+              <input type="number" id="projectsCount" min="0" placeholder="0">
+            </div>
+            <div class="form-group full-width">
+              <label for="projectsDescription">Projects Description</label>
+              <textarea id="projectsDescription" rows="4" placeholder="Describe your projects"></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label for="certifications">Certifications (AWS, Google, etc.)</label>
+              <textarea id="certifications" rows="2" placeholder="e.g., AWS Certified, Google Cloud Professional"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="internshipMonths">Internship Experience (Months)</label>
+              <input type="number" id="internshipMonths" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="internshipCompanies">Internship Companies</label>
+              <input type="text" id="internshipCompanies" placeholder="e.g., Google, Microsoft">
+            </div>
+          </div>
+        </section>
+
+        <!-- Placement Preferences Section -->
+        <section class="section">
+          <h2>Placement Preferences</h2>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label for="eligibleCompanies">Eligible Companies / Companies Interested</label>
+              <textarea id="eligibleCompanies" rows="2" placeholder="e.g., Google, Microsoft, Amazon"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="jobRolePreference">Job Role Preference</label>
+              <input type="text" id="jobRolePreference" placeholder="e.g., SDE, Data Analyst, Product Manager">
+            </div>
+            <div class="form-group">
+              <label for="expectedCTC">Expected CTC / Salary Expectations</label>
+              <input type="text" id="expectedCTC" placeholder="e.g., 10 LPA">
+            </div>
+            <div class="form-group">
+              <label for="willingToRelocate">Willing to Relocate</label>
+              <select id="willingToRelocate">
+                <option value="">Select</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="noticePeriod">Notice Period</label>
+              <input type="text" id="noticePeriod" placeholder="e.g., 30 days">
+            </div>
+            <div class="form-group">
+              <label for="availableFromDate">Available From Date</label>
+              <input type="date" id="availableFromDate">
+            </div>
+            <div class="form-group full-width">
+              <label for="resumeLink">Resume Upload (Link)</label>
+              <input type="url" id="resumeLink" placeholder="https://...">
+            </div>
+          </div>
+        </section>
+
+        <!-- Additional Fields Section -->
+        <section class="section">
+          <h2>Additional Information</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="parentContact">Parent/Guardian Contact Number</label>
+              <input type="tel" id="parentContact" placeholder="10 digits">
+            </div>
+            <div class="form-group">
+              <label for="alternateContact">Alternate Contact Number</label>
+              <input type="tel" id="alternateContact" placeholder="10 digits">
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="declaration">
+                <span>Declaration/Authorization (I agree to the terms and conditions)</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Documents -->
+        <section class="section">
+          <h2>Document Links</h2>
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label for="tenthMarksheetLink">10th Marksheet Link</label>
+              <input type="url" id="tenthMarksheetLink" placeholder="https://...">
+            </div>
+            <div class="form-group full-width">
+              <label for="twelfthMarksheetLink">12th Marksheet Link</label>
+              <input type="url" id="twelfthMarksheetLink" placeholder="https://...">
+            </div>
+            <div class="form-group full-width">
+              <label for="collegeIdCardLink">College ID Card Link</label>
+              <input type="url" id="collegeIdCardLink" placeholder="https://...">
+            </div>
+            <div class="form-group full-width">
+              <label for="passportPhotoLink">Passport Size Photo Link</label>
+              <input type="url" id="passportPhotoLink" placeholder="https://...">
+            </div>
+          </div>
+        </section>
+
+        <!-- Social Links -->
+        <section class="section">
+          <h2>Social & Professional Links</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="linkedin">LinkedIn</label>
+              <input type="url" id="linkedin" placeholder="https://linkedin.com/in/...">
+            </div>
+            <div class="form-group">
+              <label for="github">GitHub</label>
+              <input type="url" id="github" placeholder="https://github.com/...">
+            </div>
+            <div class="form-group">
+              <label for="portfolio">Portfolio</label>
+              <input type="url" id="portfolio" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label for="behance">Behance</label>
+              <input type="url" id="behance" placeholder="https://behance.net/...">
+            </div>
+            <div class="form-group">
+              <label for="instagram">Instagram</label>
+              <input type="text" id="instagram" placeholder="@username">
+            </div>
+            <div class="form-group">
+              <label for="twitter">Twitter/X</label>
+              <input type="text" id="twitter" placeholder="@username">
+            </div>
+            <div class="form-group">
+              <label for="whatsapp">WhatsApp</label>
+              <input type="tel" id="whatsapp" placeholder="+91...">
+            </div>
+            <div class="form-group">
+              <label for="telegram">Telegram</label>
+              <input type="text" id="telegram" placeholder="@username">
+            </div>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Profile</button>
+          <button type="button" class="btn btn-secondary" id="reset-profile-btn">Reset</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Custom Fields Tab -->
+    <div id="custom-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Custom Fields</h2>
+        <button class="btn btn-primary" id="add-custom-field-options-btn">+ Add Field</button>
+      </div>
+      <div id="custom-fields-list-options" class="custom-fields-list-options">
+        <!-- Custom fields will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content">
+      <form id="settings-form">
+        <section class="section">
+          <h2>General Settings</h2>
+          <div class="form-group">
+            <label for="theme">Theme</label>
+            <select id="theme">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="auto">Auto (System)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoFill">
+              <span>Auto-fill on form detection</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="showPreview">
+              <span>Show preview before filling</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="sessionTimeout">Session Timeout (minutes)</label>
+            <input type="number" id="sessionTimeout" min="5" max="60" value="15">
+          </div>
+          <div class="form-group">
+            <label for="mlConfidenceThreshold">ML Confidence Threshold</label>
+            <input type="number" id="mlConfidenceThreshold" min="0" max="1" step="0.1" value="0.7">
+            <p class="help-text">Fields with confidence below this will require preview (0.0 - 1.0)</p>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="mlAutoTrain">
+              <span>Auto-train ML model (improves accuracy over time)</span>
+            </label>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ML Stats Tab -->
+    <div id="ml-tab" class="tab-content">
+      <section class="section">
+        <h2>ML Field Matcher Statistics</h2>
+        <div id="ml-stats-container">
+          <div class="ml-stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Vocabulary Size</div>
+              <div class="stat-value" id="ml-vocab-size">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Classes</div>
+              <div class="stat-value" id="ml-classes">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Training Examples</div>
+              <div class="stat-value" id="ml-examples">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Estimated Accuracy</div>
+              <div class="stat-value" id="ml-accuracy">95%</div>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-top: 20px;">
+            <h3>Test ML Model</h3>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+              <input type="text" id="ml-test-input" placeholder="Enter field label (e.g., 'University PRN Number')" style="flex: 1; padding: 8px;">
+              <button class="btn btn-primary" id="ml-test-btn">Test</button>
+            </div>
+            <div id="ml-test-result" style="margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; display: none;">
+              <div style="font-weight: bold; margin-bottom: 8px;">Result:</div>
+              <div id="ml-test-output"></div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 20px;">
+            <h3>Model Information</h3>
+            <p class="help-text">
+              The ML model uses <strong>Bag of Words + Naive Bayes</strong> classification to match form fields.
+              It's trained on 100+ examples of Indian college and scholarship forms.
+            </p>
+            <p class="help-text" style="margin-top: 10px;">
+              <strong>Confidence Levels:</strong><br>
+              🟢 Green (≥80%): High confidence, auto-fills<br>
+              🟡 Yellow (60-80%): Medium confidence, shows preview<br>
+              🔴 Red (&lt;60%): Low confidence, requires manual review
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Security Tab -->
+    <div id="security-tab" class="tab-content">
+      <section class="section">
+        <h2>Security Settings</h2>
+        <div class="form-group">
+          <button class="btn btn-secondary" id="change-password-btn">Change Master Password</button>
+        </div>
+        <div class="form-group">
+          <button class="btn btn-secondary" id="export-data-btn">Export Data</button>
+          <p class="help-text">Export your profile and custom fields as encrypted JSON</p>
+        </div>
+        <div class="form-group">
+          <button class="btn btn-secondary" id="import-data-btn">Import Data</button>
+          <input type="file" id="import-file-input" accept=".json" style="display: none;">
+          <p class="help-text">Import previously exported data</p>
+        </div>
+        <div class="form-group danger-zone">
+          <h3>Danger Zone</h3>
+          <button class="btn btn-danger" id="clear-data-btn">Clear All Data</button>
+          <p class="help-text danger">This will permanently delete all your data. This action cannot be undone.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="custom-field-modal-options" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Custom Field</h3>
+        <button class="icon-btn" id="close-modal-options-btn">×</button>
+      </div>
+      <form id="custom-field-form-options">
+        <div class="form-group">
+          <label for="field-key-options">Field Key (unique identifier)</label>
+          <input type="text" id="field-key-options" placeholder="e.g., familyIncome" required>
+        </div>
+        <div class="form-group">
+          <label for="field-label-options">Display Label</label>
+          <input type="text" id="field-label-options" placeholder="e.g., Family Annual Income" required>
+        </div>
+        <div class="form-group">
+          <label for="field-value-options">Value</label>
+          <input type="text" id="field-value-options" placeholder="Enter value">
+        </div>
+        <div class="form-group">
+          <label for="field-type-options">Field Type</label>
+          <select id="field-type-options">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="date">Date</option>
+            <option value="dropdown">Dropdown</option>
+            <option value="longText">Long Text</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="field-category-options">Category</label>
+          <select id="field-category-options">
+            <option value="General">General</option>
+            <option value="Academic">Academic</option>
+            <option value="Financial">Financial</option>
+            <option value="Documents">Documents</option>
+            <option value="Personal">Personal</option>
+            <option value="Scholarship">Scholarship</option>
+            <option value="Employment">Employment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-field-options-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Field</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="lib/crypto-utils.js"></script>
+  <script src="lib/storage-manager.js"></script>
+  <script src="lib/auth-manager.js"></script>
+  <script src="lib/profile-manager.js"></script>
+  <script src="lib/custom-fields-manager.js"></script>
+  <script src="lib/ml-field-matcher.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
+
