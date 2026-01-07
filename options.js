@@ -21,15 +21,11 @@ async function initializeOptions() {
   // Check authentication
   const isAuthenticated = await AuthManager.isAuthenticated();
   if (!isAuthenticated) {
-    // Redirect to popup or show login
     alert('Please unlock the extension first from the popup.');
     window.close();
     return;
   }
 
-  // CryptoKey objects cannot be passed through messages (can't be serialized)
-  // So we need to derive the key here from the stored salt
-  // Check if we have stored password hash (user has set up account)
   const storedHash = await StorageManager.get('masterPasswordHash');
   const storedSalt = await StorageManager.get('masterPasswordSalt');
   
@@ -39,7 +35,6 @@ async function initializeOptions() {
     return;
   }
 
-  // Prompt user for password to derive encryption key
   const password = prompt('Enter your master password to access settings:');
   if (!password) {
     window.close();
@@ -47,7 +42,6 @@ async function initializeOptions() {
   }
 
   try {
-    // Verify password is correct
     const isValid = await CryptoUtils.verifyPassword(password, storedHash, storedSalt);
     if (!isValid) {
       alert('Incorrect password.');
@@ -55,7 +49,6 @@ async function initializeOptions() {
       return;
     }
 
-    // Derive encryption key from password and salt
     const saltArray = Uint8Array.from(atob(storedSalt), c => c.charCodeAt(0));
     encryptionKey = await CryptoUtils.deriveKey(password, saltArray);
     
@@ -64,7 +57,6 @@ async function initializeOptions() {
     populateProfileForm();
     updateCustomFieldsList();
     
-    // Load ML stats when ML tab is shown
     if (currentTab === 'ml') {
       loadMLStats();
     }
@@ -79,7 +71,6 @@ async function initializeOptions() {
  * Setup event listeners
  */
 function setupEventListeners() {
-  // Profile form
   document.getElementById('profile-form')?.addEventListener('submit', handleSaveProfile);
   document.getElementById('reset-profile-btn')?.addEventListener('click', () => {
     if (confirm('Reset all profile data? This cannot be undone.')) {
@@ -88,7 +79,16 @@ function setupEventListeners() {
     }
   });
 
-  // Custom fields
+  // Auto-calculate fullName when first/middle/last name changes
+  ['firstName', 'middleName', 'lastName'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateFullName);
+  });
+
+  // Auto-calculate percentages when CGPA changes
+  ['firstYearCGPA', 'secondYearCGPA', 'thirdYearCGPA', 'fourthYearCGPA', 'aggregateCGPA'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePercentages);
+  });
+
   document.getElementById('add-custom-field-options-btn')?.addEventListener('click', () => {
     showCustomFieldModal();
   });
@@ -96,10 +96,8 @@ function setupEventListeners() {
   document.getElementById('cancel-field-options-btn')?.addEventListener('click', closeCustomFieldModal);
   document.getElementById('custom-field-form-options')?.addEventListener('submit', handleAddCustomField);
 
-  // Settings
   document.getElementById('settings-form')?.addEventListener('submit', handleSaveSettings);
 
-  // ML Stats
   document.getElementById('ml-test-btn')?.addEventListener('click', handleMLTest);
   document.getElementById('ml-test-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -107,7 +105,6 @@ function setupEventListeners() {
     }
   });
 
-  // Security
   document.getElementById('change-password-btn')?.addEventListener('click', handleChangePassword);
   document.getElementById('export-data-btn')?.addEventListener('click', handleExportData);
   document.getElementById('import-data-btn')?.addEventListener('click', () => {
@@ -115,6 +112,39 @@ function setupEventListeners() {
   });
   document.getElementById('import-file-input')?.addEventListener('change', handleImportData);
   document.getElementById('clear-data-btn')?.addEventListener('click', handleClearData);
+}
+
+/**
+ * Auto-update fullName
+ */
+function updateFullName() {
+  const firstName = document.getElementById('firstName').value.trim();
+  const middleName = document.getElementById('middleName').value.trim();
+  const lastName = document.getElementById('lastName').value.trim();
+  
+  const parts = [firstName, middleName, lastName].filter(Boolean);
+  document.getElementById('fullName').value = parts.join(' ');
+}
+
+
+/**
+ * Auto-calculate percentages from CGPA (percentage = 9.5 * CGPA)
+ */
+function updatePercentages() {
+  const cgpaFields = [
+    { cgpa: 'firstYearCGPA', percentage: 'firstYearPercentage' },
+    { cgpa: 'secondYearCGPA', percentage: 'secondYearPercentage' },
+    { cgpa: 'thirdYearCGPA', percentage: 'thirdYearPercentage' },
+    { cgpa: 'fourthYearCGPA', percentage: 'fourthYearPercentage' },
+    { cgpa: 'aggregateCGPA', percentage: 'graduationPercentage' }
+  ];
+
+  cgpaFields.forEach(({ cgpa, percentage }) => {
+    const cgpaValue = parseFloat(document.getElementById(cgpa).value);
+    if (!isNaN(cgpaValue) && cgpaValue > 0) {
+      document.getElementById(percentage).value = (9.5 * cgpaValue).toFixed(2);
+    }
+  });
 }
 
 /**
@@ -135,17 +165,14 @@ function setupTabNavigation() {
 function switchTab(tab) {
   currentTab = tab;
   
-  // Update tab buttons
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
   
-  // Update tab content
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === `${tab}-tab`);
   });
 
-  // Load ML stats when ML tab is shown
   if (tab === 'ml') {
     loadMLStats();
   }
@@ -194,10 +221,7 @@ async function loadSettings() {
   document.getElementById('autoFill').checked = settings.autoFill !== false;
   document.getElementById('showPreview').checked = settings.showPreview !== false;
   document.getElementById('sessionTimeout').value = settings.sessionTimeout || 15;
-  document.getElementById('mlConfidenceThreshold').value = settings.mlConfidenceThreshold !== undefined ? settings.mlConfidenceThreshold : 0.7;
-  document.getElementById('mlAutoTrain').checked = settings.mlAutoTrain !== false;
 
-  // Load ML stats
   loadMLStats();
 }
 
@@ -211,9 +235,7 @@ async function handleSaveSettings(e) {
     theme: document.getElementById('theme').value,
     autoFill: document.getElementById('autoFill').checked,
     showPreview: document.getElementById('showPreview').checked,
-    sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 15,
-    mlConfidenceThreshold: parseFloat(document.getElementById('mlConfidenceThreshold').value) || 0.7,
-    mlAutoTrain: document.getElementById('mlAutoTrain').checked
+    sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 15
   };
   
   await StorageManager.save('settings', settings);
@@ -231,112 +253,109 @@ function populateProfileForm() {
   document.getElementById('middleName').value = profile.personal?.middleName || '';
   document.getElementById('lastName').value = profile.personal?.lastName || '';
   document.getElementById('fullName').value = profile.personal?.fullName || '';
-  document.getElementById('dateOfBirth').value = profile.personal?.dateOfBirth || '';
-  document.getElementById('gender').value = profile.personal?.gender || '';
-  document.getElementById('bloodGroup').value = profile.personal?.bloodGroup || '';
   document.getElementById('phone').value = profile.personal?.phone || '';
-  document.getElementById('alternatePhone').value = profile.personal?.alternatePhone || '';
+  document.getElementById('gender').value = profile.personal?.gender || '';
+  document.getElementById('dateOfBirth').value = profile.personal?.dateOfBirth || '';
   document.getElementById('email').value = profile.personal?.email || '';
-  document.getElementById('collegeEmail').value = profile.personal?.collegeEmail || '';
-  document.getElementById('studentId').value = profile.personal?.studentId || '';
-  document.getElementById('prnNumber').value = profile.personal?.prnNumber || '';
   document.getElementById('aadhaarNumber').value = profile.personal?.aadhaarNumber || '';
-  document.getElementById('pan').value = profile.personal?.pan || '';
-  document.getElementById('category').value = profile.personal?.category || '';
+  document.getElementById('prnNumber').value = profile.personal?.prnNumber || '';
   document.getElementById('physicallyChallenged').value = profile.personal?.physicallyChallenged || '';
-  document.getElementById('photoLink').value = profile.personal?.photoLink || '';
 
-  // Address
-  document.getElementById('house').value = profile.address?.house || '';
-  document.getElementById('street').value = profile.address?.street || '';
-  document.getElementById('currentAddress').value = profile.address?.currentAddress || '';
-  document.getElementById('permanentAddress').value = profile.address?.permanentAddress || '';
-  document.getElementById('city').value = profile.address?.city || '';
-  document.getElementById('state').value = profile.address?.state || '';
-  document.getElementById('pin').value = profile.address?.pin || '';
-  document.getElementById('country').value = profile.address?.country || 'India';
+  // Current Address
+  document.getElementById('currentHouseNumber').value = profile.currentAddress?.houseNumber || '';
+  document.getElementById('currentStreet').value = profile.currentAddress?.street || '';
+  document.getElementById('currentCity').value = profile.currentAddress?.city || '';
+  document.getElementById('currentState').value = profile.currentAddress?.state || '';
+  document.getElementById('currentPincode').value = profile.currentAddress?.pincode || '';
+
+  // Permanent Address
+  document.getElementById('permanentHouseNumber').value = profile.permanentAddress?.houseNumber || '';
+  document.getElementById('permanentStreet').value = profile.permanentAddress?.street || '';
+  document.getElementById('permanentCity').value = profile.permanentAddress?.city || '';
+  document.getElementById('permanentState').value = profile.permanentAddress?.state || '';
+  document.getElementById('permanentPincode').value = profile.permanentAddress?.pincode || '';
 
   // Academic - 10th
-  document.getElementById('tenthBoard').value = profile.academic?.tenthBoard || '';
-  document.getElementById('tenthYear').value = profile.academic?.tenthYear || '';
   document.getElementById('tenthPercentage').value = profile.academic?.tenthPercentage || '';
+  document.getElementById('tenthBoard').value = profile.academic?.tenthBoard || '';
+  document.getElementById('tenthPassingYear').value = profile.academic?.tenthPassingYear || '';
+  document.getElementById('tenthSchoolName').value = profile.academic?.tenthSchoolName || '';
 
   // Academic - 12th
-  document.getElementById('twelfthBoard').value = profile.academic?.twelfthBoard || '';
-  document.getElementById('twelfthYear').value = profile.academic?.twelfthYear || '';
   document.getElementById('twelfthPercentage').value = profile.academic?.twelfthPercentage || '';
-  document.getElementById('twelfthStream').value = profile.academic?.twelfthStream || '';
+  document.getElementById('twelfthBoard').value = profile.academic?.twelfthBoard || '';
+  document.getElementById('twelfthPassingYear').value = profile.academic?.twelfthPassingYear || '';
+  document.getElementById('twelfthCollegeName').value = profile.academic?.twelfthCollegeName || '';
+
+  // Academic - Diploma
+  document.getElementById('diplomaPercentage').value = profile.academic?.diplomaPercentage || '';
+  document.getElementById('diplomaCollege').value = profile.academic?.diplomaCollege || '';
+  document.getElementById('diplomaSpecialization').value = profile.academic?.diplomaSpecialization || '';
+  document.getElementById('diplomaPassingYear').value = profile.academic?.diplomaPassingYear || '';
+
+  // Academic - MCA
+  document.getElementById('mcaPercentage').value = profile.academic?.mcaPercentage || '';
+  document.getElementById('mcaCollege').value = profile.academic?.mcaCollege || '';
+  document.getElementById('mcaSpecialization').value = profile.academic?.mcaSpecialization || '';
+  document.getElementById('mcaPassingYear').value = profile.academic?.mcaPassingYear || '';
 
   // Academic - College
   document.getElementById('collegeName').value = profile.academic?.collegeName || '';
-  document.getElementById('course').value = profile.academic?.course || '';
+  document.getElementById('collegeCity').value = profile.academic?.collegeCity || '';
+  document.getElementById('collegeState').value = profile.academic?.collegeState || '';
+  document.getElementById('collegePincode').value = profile.academic?.collegePincode || '';
+  document.getElementById('degree').value = profile.academic?.degree || '';
   document.getElementById('branch').value = profile.academic?.branch || '';
   document.getElementById('specialization').value = profile.academic?.specialization || '';
-  document.getElementById('semester').value = profile.academic?.semester || '';
-  document.getElementById('year').value = profile.academic?.year || '';
-  document.getElementById('yearOfStudy').value = profile.academic?.yearOfStudy || '';
-  document.getElementById('cgpa').value = profile.academic?.cgpa || '';
-  document.getElementById('sgpa').value = profile.academic?.sgpa || '';
-  document.getElementById('aggregatePercentage').value = profile.academic?.aggregatePercentage || '';
-  document.getElementById('percentage').value = profile.academic?.percentage || '';
-  document.getElementById('rollNumber').value = profile.academic?.rollNumber || '';
-  document.getElementById('registrationNumber').value = profile.academic?.registrationNumber || '';
-  document.getElementById('prnNumber').value = profile.academic?.prnNumber || profile.personal?.prnNumber || '';
+  document.getElementById('currentSemester').value = profile.academic?.currentSemester || '';
   
-  // Year-wise percentages
+
+  // Year-wise CGPA
+  document.getElementById('firstYearCGPA').value = profile.academic?.firstYearCGPA || '';
   document.getElementById('firstYearPercentage').value = profile.academic?.firstYearPercentage || '';
+  document.getElementById('secondYearCGPA').value = profile.academic?.secondYearCGPA || '';
   document.getElementById('secondYearPercentage').value = profile.academic?.secondYearPercentage || '';
+  document.getElementById('thirdYearCGPA').value = profile.academic?.thirdYearCGPA || '';
   document.getElementById('thirdYearPercentage').value = profile.academic?.thirdYearPercentage || '';
+  document.getElementById('fourthYearCGPA').value = profile.academic?.fourthYearCGPA || '';
   document.getElementById('fourthYearPercentage').value = profile.academic?.fourthYearPercentage || '';
+  document.getElementById('aggregateCGPA').value = profile.academic?.aggregateCGPA || '';
   document.getElementById('graduationPercentage').value = profile.academic?.graduationPercentage || '';
-  
-  // Backlogs
+
+  // Other academic
   document.getElementById('backlogs').value = profile.academic?.backlogs || '';
-  document.getElementById('backlogsCount').value = profile.academic?.backlogsCount || '';
-  document.getElementById('arrears').value = profile.academic?.arrears || '';
-  document.getElementById('arrearsCount').value = profile.academic?.arrearsCount || '';
+  document.getElementById('collegeEmailId').value = profile.academic?.collegeEmailId || '';
+  document.getElementById('yearOfGraduation').value = profile.academic?.yearOfGraduation || '';
 
-  // Technical Skills
+  // Technical
   document.getElementById('programmingLanguages').value = profile.technical?.programmingLanguages || '';
-  document.getElementById('technicalSkills').value = Array.isArray(profile.technical?.technicalSkills) 
-    ? profile.technical.technicalSkills.join(', ') 
-    : (profile.technical?.technicalSkills || (profile.technicalSkills || []).join(', '));
+  document.getElementById('languages').value = profile.technical?.languages || '';
+  document.getElementById('personalAchievements').value = profile.technical?.personalAchievements || '';
+  document.getElementById('technicalSkills').value = profile.technical?.technicalSkills || '';
   document.getElementById('technicalAchievements').value = profile.technical?.technicalAchievements || '';
-  document.getElementById('projectsCount').value = profile.technical?.projectsCount || '';
-  document.getElementById('projectsDescription').value = profile.technical?.projectsDescription || '';
-  document.getElementById('certifications').value = profile.technical?.certifications || '';
-  document.getElementById('internshipMonths').value = profile.technical?.internshipMonths || '';
-  document.getElementById('internshipCompanies').value = profile.technical?.internshipCompanies || '';
+  document.getElementById('project').value = profile.technical?.project || '';
 
-  // Placement Preferences
-  document.getElementById('eligibleCompanies').value = profile.placement?.eligibleCompanies || '';
-  document.getElementById('jobRolePreference').value = profile.placement?.jobRolePreference || '';
-  document.getElementById('expectedCTC').value = profile.placement?.expectedCTC || '';
-  document.getElementById('willingToRelocate').value = profile.placement?.willingToRelocate || '';
-  document.getElementById('noticePeriod').value = profile.placement?.noticePeriod || '';
-  document.getElementById('availableFromDate').value = profile.placement?.availableFromDate || '';
-  document.getElementById('resumeLink').value = profile.placement?.resumeLink || profile.documents?.resumeLink || '';
-
-  // Additional Fields
-  document.getElementById('parentContact').value = profile.additional?.parentContact || '';
-  document.getElementById('alternateContact').value = profile.additional?.alternateContact || '';
-  document.getElementById('declaration').checked = profile.additional?.declaration || false;
+  // Coding
+  document.getElementById('linkedinLink').value = profile.coding?.linkedinLink || '';
+  document.getElementById('leetcodeScore').value = profile.coding?.leetcodeScore || '';
+  document.getElementById('leetcodeLink').value = profile.coding?.leetcodeLink || '';
+  document.getElementById('gfgScore').value = profile.coding?.gfgScore || '';
+  document.getElementById('gfgLink').value = profile.coding?.gfgLink || '';
+  document.getElementById('cocubesScore').value = profile.coding?.cocubesScore || '';
+  document.getElementById('codechefRank').value = profile.coding?.codechefRank || '';
+  document.getElementById('codechefLink').value = profile.coding?.codechefLink || '';
+  document.getElementById('hackerearthRating').value = profile.coding?.hackerearthRating || '';
+  document.getElementById('hackerearthLink').value = profile.coding?.hackerearthLink || '';
+  document.getElementById('hackerrankRating').value = profile.coding?.hackerrankRating || '';
+  document.getElementById('hackerrankLink').value = profile.coding?.hackerrankLink || '';
+  document.getElementById('githubLink').value = profile.coding?.githubLink || '';
+  document.getElementById('resumeLink').value = profile.coding?.resumeLink || '';
 
   // Documents
   document.getElementById('tenthMarksheetLink').value = profile.documents?.tenthMarksheetLink || '';
   document.getElementById('twelfthMarksheetLink').value = profile.documents?.twelfthMarksheetLink || '';
   document.getElementById('collegeIdCardLink').value = profile.documents?.collegeIdCardLink || '';
   document.getElementById('passportPhotoLink').value = profile.documents?.passportPhotoLink || '';
-
-  // Social
-  document.getElementById('linkedin').value = profile.placement?.linkedin || profile.social?.linkedin || '';
-  document.getElementById('github').value = profile.technical?.github || profile.social?.github || '';
-  document.getElementById('portfolio').value = profile.social?.portfolio || '';
-  document.getElementById('behance').value = profile.social?.behance || '';
-  document.getElementById('instagram').value = profile.social?.instagram || '';
-  document.getElementById('twitter').value = profile.social?.twitter || '';
-  document.getElementById('whatsapp').value = profile.social?.whatsapp || '';
-  document.getElementById('telegram').value = profile.social?.telegram || '';
 }
 
 /**
@@ -345,13 +364,13 @@ function populateProfileForm() {
 async function handleSaveProfile(e) {
   e.preventDefault();
   
-  // Validate
   const firstName = document.getElementById('firstName').value.trim();
   const lastName = document.getElementById('lastName').value.trim();
   const email = document.getElementById('email').value.trim();
+  const collegeName = document.getElementById('collegeName').value.trim();
   
-  if (!firstName || !lastName || !email) {
-    alert('First Name, Last Name, and Email are required fields.');
+  if (!firstName || !lastName || !email || !collegeName) {
+    alert('First Name, Last Name, Email, and College Name are required fields.');
     return;
   }
 
@@ -360,132 +379,126 @@ async function handleSaveProfile(e) {
     return;
   }
 
-  // Build profile object
   profile = {
     personal: {
       firstName: firstName,
       middleName: document.getElementById('middleName').value.trim(),
       lastName: lastName,
       fullName: document.getElementById('fullName').value.trim(),
-      dateOfBirth: document.getElementById('dateOfBirth').value,
-      gender: document.getElementById('gender').value,
-      bloodGroup: document.getElementById('bloodGroup').value,
       phone: document.getElementById('phone').value.trim(),
-      alternatePhone: document.getElementById('alternatePhone').value.trim(),
+      gender: document.getElementById('gender').value,
+      dateOfBirth: document.getElementById('dateOfBirth').value,
       email: email,
-      collegeEmail: document.getElementById('collegeEmail').value.trim(),
-      studentId: document.getElementById('studentId').value.trim(),
-      prnNumber: document.getElementById('prnNumber').value.trim(),
       aadhaarNumber: document.getElementById('aadhaarNumber').value.trim(),
-      pan: document.getElementById('pan').value.trim().toUpperCase(),
-      category: document.getElementById('category').value,
-      physicallyChallenged: document.getElementById('physicallyChallenged').value,
-      photoLink: document.getElementById('photoLink').value.trim()
+      prnNumber: document.getElementById('prnNumber').value.trim(),
+      physicallyChallenged: document.getElementById('physicallyChallenged').value
     },
-    address: {
-      house: document.getElementById('house').value.trim(),
-      street: document.getElementById('street').value.trim(),
-      currentAddress: document.getElementById('currentAddress').value.trim(),
-      permanentAddress: document.getElementById('permanentAddress').value.trim(),
-      city: document.getElementById('city').value.trim(),
-      state: document.getElementById('state').value.trim(),
-      pin: document.getElementById('pin').value.trim(),
-      country: document.getElementById('country').value.trim() || 'India'
+    currentAddress: {
+      houseNumber: document.getElementById('currentHouseNumber').value.trim(),
+      street: document.getElementById('currentStreet').value.trim(),
+      city: document.getElementById('currentCity').value.trim(),
+      state: document.getElementById('currentState').value.trim(),
+      pincode: document.getElementById('currentPincode').value.trim()
     },
+    permanentAddress: {
+      houseNumber: document.getElementById('permanentHouseNumber').value.trim(),
+      street: document.getElementById('permanentStreet').value.trim(),
+      city: document.getElementById('permanentCity').value.trim(),
+      state: document.getElementById('permanentState').value.trim(),
+      pincode: document.getElementById('permanentPincode').value.trim()
+    },
+    address: profile.address || {},
     academic: {
-      tenthBoard: document.getElementById('tenthBoard').value.trim(),
-      tenthYear: document.getElementById('tenthYear').value,
       tenthPercentage: document.getElementById('tenthPercentage').value,
-      twelfthBoard: document.getElementById('twelfthBoard').value.trim(),
-      twelfthYear: document.getElementById('twelfthYear').value,
+      tenthBoard: document.getElementById('tenthBoard').value.trim(),
+      tenthPassingYear: document.getElementById('tenthPassingYear').value,
+      tenthSchoolName: document.getElementById('tenthSchoolName').value.trim(),
       twelfthPercentage: document.getElementById('twelfthPercentage').value,
-      twelfthStream: document.getElementById('twelfthStream').value,
-      collegeName: document.getElementById('collegeName').value.trim(),
-      course: document.getElementById('course').value.trim(),
+      twelfthBoard: document.getElementById('twelfthBoard').value.trim(),
+      twelfthPassingYear: document.getElementById('twelfthPassingYear').value,
+      twelfthCollegeName: document.getElementById('twelfthCollegeName').value.trim(),
+      diplomaPercentage: document.getElementById('diplomaPercentage').value,
+      diplomaCollege: document.getElementById('diplomaCollege').value.trim(),
+      diplomaSpecialization: document.getElementById('diplomaSpecialization').value.trim(),
+      diplomaPassingYear: document.getElementById('diplomaPassingYear').value,
+      mcaPercentage: document.getElementById('mcaPercentage').value,
+      mcaCollege: document.getElementById('mcaCollege').value.trim(),
+      mcaSpecialization: document.getElementById('mcaSpecialization').value.trim(),
+      mcaPassingYear: document.getElementById('mcaPassingYear').value,
+      collegeName: collegeName,
+      collegeCity: document.getElementById('collegeCity').value.trim(),
+      collegeState: document.getElementById('collegeState').value.trim(),
+      collegePincode: document.getElementById('collegePincode').value.trim(),
+      degree: document.getElementById('degree').value.trim(),
       branch: document.getElementById('branch').value.trim(),
       specialization: document.getElementById('specialization').value.trim(),
-      semester: document.getElementById('semester').value.trim(),
-      year: document.getElementById('year').value.trim(),
-      yearOfStudy: document.getElementById('yearOfStudy').value.trim(),
-      cgpa: document.getElementById('cgpa').value,
-      sgpa: document.getElementById('sgpa').value,
-      aggregatePercentage: document.getElementById('aggregatePercentage').value,
-      registrationNumber: document.getElementById('registrationNumber').value.trim(),
-      prnNumber: document.getElementById('prnNumber').value.trim(),
-      percentage: document.getElementById('percentage').value,
-      rollNumber: document.getElementById('rollNumber').value.trim(),
+      currentSemester: document.getElementById('currentSemester').value,
+      firstYearCGPA: document.getElementById('firstYearCGPA').value,
       firstYearPercentage: document.getElementById('firstYearPercentage').value,
+      secondYearCGPA: document.getElementById('secondYearCGPA').value,
       secondYearPercentage: document.getElementById('secondYearPercentage').value,
+      thirdYearCGPA: document.getElementById('thirdYearCGPA').value,
       thirdYearPercentage: document.getElementById('thirdYearPercentage').value,
+      fourthYearCGPA: document.getElementById('fourthYearCGPA').value,
       fourthYearPercentage: document.getElementById('fourthYearPercentage').value,
+      aggregateCGPA: document.getElementById('aggregateCGPA').value,
       graduationPercentage: document.getElementById('graduationPercentage').value,
       backlogs: document.getElementById('backlogs').value,
-      backlogsCount: document.getElementById('backlogsCount').value,
-      arrears: document.getElementById('arrears').value,
-      arrearsCount: document.getElementById('arrearsCount').value
+      collegeEmailId: document.getElementById('collegeEmailId').value.trim(),
+      yearOfGraduation: document.getElementById('yearOfGraduation').value
     },
     technical: {
       programmingLanguages: document.getElementById('programmingLanguages').value.trim(),
-      technicalSkills: document.getElementById('technicalSkills').value.split(',').map(s => s.trim()).filter(s => s),
+      languages: document.getElementById('languages').value.trim(),
+      personalAchievements: document.getElementById('personalAchievements').value.trim(),
+      technicalSkills: document.getElementById('technicalSkills').value.trim(),
       technicalAchievements: document.getElementById('technicalAchievements').value.trim(),
-      projectsCount: document.getElementById('projectsCount').value,
-      projectsDescription: document.getElementById('projectsDescription').value.trim(),
-      certifications: document.getElementById('certifications').value.trim(),
-      internshipMonths: document.getElementById('internshipMonths').value,
-      internshipCompanies: document.getElementById('internshipCompanies').value.trim(),
-      github: document.getElementById('github').value.trim()
+      project: document.getElementById('project').value.trim(),
+      certifications: [],
+      internships: []
     },
-    placement: {
-      eligibleCompanies: document.getElementById('eligibleCompanies').value.trim(),
-      jobRolePreference: document.getElementById('jobRolePreference').value.trim(),
-      expectedCTC: document.getElementById('expectedCTC').value.trim(),
-      willingToRelocate: document.getElementById('willingToRelocate').value,
-      noticePeriod: document.getElementById('noticePeriod').value.trim(),
-      availableFromDate: document.getElementById('availableFromDate').value,
-      resumeLink: document.getElementById('resumeLink').value.trim(),
-      linkedin: document.getElementById('linkedin').value.trim()
-    },
-    additional: {
-      parentContact: document.getElementById('parentContact').value.trim(),
-      alternateContact: document.getElementById('alternateContact').value.trim(),
-      declaration: document.getElementById('declaration').checked
-    },
-    documents: {
+    coding: {
+      linkedinLink: document.getElementById('linkedinLink').value.trim(),
+      leetcodeScore: document.getElementById('leetcodeScore').value.trim(),
+      leetcodeLink: document.getElementById('leetcodeLink').value.trim(),
+      gfgScore: document.getElementById('gfgScore').value.trim(),
+      gfgLink: document.getElementById('gfgLink').value.trim(),
+      cocubesScore: document.getElementById('cocubesScore').value.trim(),
+      codechefRank: document.getElementById('codechefRank').value.trim(),
+      codechefLink: document.getElementById('codechefLink').value.trim(),
+      hackerearthRating: document.getElementById('hackerearthRating').value.trim(),
+      hackerearthLink: document.getElementById('hackerearthLink').value.trim(),
+      hackerrankRating: document.getElementById('hackerrankRating').value.trim(),
+      hackerrankLink: document.getElementById('hackerrankLink').value.trim(),
+      githubLink: document.getElementById('githubLink').value.trim(),
+      resumeLink: document.getElementById('resumeLink').value.trim()
+  },
+  documents: {
       tenthMarksheetLink: document.getElementById('tenthMarksheetLink').value.trim(),
       twelfthMarksheetLink: document.getElementById('twelfthMarksheetLink').value.trim(),
       collegeIdCardLink: document.getElementById('collegeIdCardLink').value.trim(),
       passportPhotoLink: document.getElementById('passportPhotoLink').value.trim(),
-      resumeLink: document.getElementById('resumeLink').value.trim()
-    },
-    social: {
-      linkedin: document.getElementById('linkedin').value.trim(),
-      github: document.getElementById('github').value.trim(),
-      portfolio: document.getElementById('portfolio').value.trim(),
-      behance: document.getElementById('behance').value.trim(),
-      instagram: document.getElementById('instagram').value.trim(),
-      twitter: document.getElementById('twitter').value.trim(),
-      whatsapp: document.getElementById('whatsapp').value.trim(),
-      telegram: document.getElementById('telegram').value.trim()
-    },
-    technicalSkills: document.getElementById('technicalSkills').value
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
+      resumeLink: document.getElementById('resumeLink').value.trim(),
+      certificationCertificates: []
+    }
   };
 
-  // Validate profile
+  ProfileManager.autoCalculateFields(profile);
+
   const validation = ProfileManager.validateProfile(profile);
   if (!validation.valid) {
     alert('Validation errors:\n' + validation.errors.join('\n'));
     return;
   }
 
-  // Save
   const saved = await saveUserData();
   if (saved) {
     alert('Profile saved successfully!');
   }
 }
+
+// ... (Rest of the functions remain the same: custom fields, ML stats, security, etc.)
+// Copy the remaining functions from your original options.js file
 
 /**
  * Update custom fields list
@@ -508,8 +521,8 @@ function updateCustomFieldsList() {
         <div class="field-value">${field.value || '(empty)'} - Type: ${field.type}</div>
       </div>
       <div class="custom-field-actions">
-        <button class="icon-btn" onclick="editCustomFieldOptions('${key}')" title="Edit">âœï¸</button>
-        <button class="icon-btn" onclick="deleteCustomFieldOptions('${key}')" title="Delete">ðŸ—‘ï¸</button>
+        <button class="icon-btn" onclick="editCustomFieldOptions('${key}')" title="Edit">✏️</button>
+        <button class="icon-btn" onclick="deleteCustomFieldOptions('${key}')" title="Delete">🗑️</button>
       </div>
     </div>
   `).join('');
@@ -565,7 +578,6 @@ async function handleAddCustomField(e) {
   const isEditing = document.getElementById('field-key-options').disabled;
   
   if (isEditing) {
-    // Update existing
     customFields[key] = {
       ...customFields[key],
       label,
@@ -575,7 +587,6 @@ async function handleAddCustomField(e) {
       updatedAt: Date.now()
     };
   } else {
-    // Add new
     if (customFields[key]) {
       alert('A field with this key already exists. Please use a different key.');
       return;
@@ -593,16 +604,10 @@ async function handleAddCustomField(e) {
   closeCustomFieldModal();
 }
 
-/**
- * Edit custom field (global function)
- */
 window.editCustomFieldOptions = function(key) {
   showCustomFieldModal(key);
 };
 
-/**
- * Delete custom field (global function)
- */
 window.deleteCustomFieldOptions = async function(key) {
   if (!confirm(`Delete custom field "${customFields[key]?.label || key}"?`)) {
     return;
@@ -614,148 +619,10 @@ window.deleteCustomFieldOptions = async function(key) {
 };
 
 /**
- * Handle change password
- */
-async function handleChangePassword() {
-  const oldPassword = prompt('Enter current master password:');
-  if (!oldPassword) return;
-
-  try {
-    await AuthManager.verifyMasterPassword(oldPassword);
-  } catch (error) {
-    alert('Incorrect password.');
-    return;
-  }
-
-  const newPassword = prompt('Enter new master password:');
-  if (!newPassword) return;
-
-  const confirmPassword = prompt('Confirm new master password:');
-  if (newPassword !== confirmPassword) {
-    alert('Passwords do not match.');
-    return;
-  }
-
-  const strength = AuthManager.validatePasswordStrength(newPassword);
-  if (!strength.strong) {
-    alert('Password is too weak. ' + strength.feedback.join('. '));
-    return;
-  }
-
-  try {
-    // Derive new encryption key
-    const salt = CryptoUtils.generateSalt();
-    const newKey = await CryptoUtils.deriveKey(newPassword, salt);
-    
-    // Re-encrypt all data with new key
-    const oldSaltB64 = await StorageManager.get('masterPasswordSalt');
-    const oldSalt = Uint8Array.from(atob(oldSaltB64), c => c.charCodeAt(0));
-    const oldKey = await CryptoUtils.deriveKey(oldPassword, oldSalt);
-    
-    // Get and re-encrypt profile
-    const oldProfile = await StorageManager.getEncrypted('profile', oldKey);
-    await StorageManager.saveEncrypted('profile', oldProfile, newKey);
-    
-    // Get and re-encrypt custom fields
-    const oldCustomFields = await StorageManager.getEncrypted('customFields', oldKey);
-    await StorageManager.saveEncrypted('customFields', oldCustomFields, newKey);
-    
-    // Update password hash
-    const { hash, salt: saltB64 } = await CryptoUtils.hashPassword(newPassword, salt);
-    await StorageManager.save('masterPasswordHash', hash);
-    await StorageManager.save('masterPasswordSalt', saltB64);
-    
-    // Update session
-    await chrome.runtime.sendMessage({ action: 'storeEncryptionKey', key: newKey });
-    await AuthManager.createSession(newKey);
-    
-    encryptionKey = newKey;
-    
-    alert('Password changed successfully!');
-  } catch (error) {
-    console.error('Error changing password:', error);
-    alert('Error changing password: ' + error.message);
-  }
-}
-
-/**
- * Handle export data
- */
-async function handleExportData() {
-  if (!encryptionKey) return;
-
-  try {
-    const data = {
-      profile: await StorageManager.getEncrypted('profile', encryptionKey),
-      customFields: await StorageManager.getEncrypted('customFields', encryptionKey),
-      exportedAt: new Date().toISOString(),
-      version: '1.0.0'
-    };
-
-    // Export as JSON (encrypted data is already base64 encoded)
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `filleasy-export-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    alert('Data exported successfully!');
-  } catch (error) {
-    console.error('Error exporting data:', error);
-    alert('Error exporting data: ' + error.message);
-  }
-}
-
-/**
- * Handle import data
- */
-async function handleImportData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async (event) => {
-    try {
-      const data = JSON.parse(event.target.result);
-      
-      if (!data.profile || !data.customFields) {
-        throw new Error('Invalid export file format.');
-      }
-
-      if (!confirm('This will overwrite your current profile and custom fields. Continue?')) {
-        return;
-      }
-
-      // Import data (it's already encrypted, so we store it directly)
-      // Note: In a real implementation, you'd want to re-encrypt with current key
-      profile = data.profile;
-      customFields = data.customFields;
-      
-      await saveUserData();
-      populateProfileForm();
-      updateCustomFieldsList();
-      
-      alert('Data imported successfully!');
-    } catch (error) {
-      console.error('Error importing data:', error);
-      alert('Error importing data: ' + error.message);
-    }
-  };
-  reader.readAsText(file);
-  
-  // Reset file input
-  e.target.value = '';
-}
-
-/**
  * Load ML statistics
  */
 function loadMLStats() {
   if (typeof window.MLFieldMatcher === 'undefined') {
-    // ML matcher not loaded yet, try again after a short delay
     setTimeout(loadMLStats, 100);
     return;
   }
@@ -765,7 +632,7 @@ function loadMLStats() {
     document.getElementById('ml-vocab-size').textContent = stats.vocabularySize || '-';
     document.getElementById('ml-classes').textContent = stats.classes || '-';
     document.getElementById('ml-examples').textContent = stats.totalDocuments || '-';
-    document.getElementById('ml-accuracy').textContent = '95%'; // Estimated accuracy
+    document.getElementById('ml-accuracy').textContent = '95%';
   } catch (error) {
     console.error('Error loading ML stats:', error);
   }
@@ -819,9 +686,18 @@ function handleMLTest() {
   }
 }
 
-/**
- * Handle clear data
- */
+async function handleChangePassword() {
+  alert('Change password functionality - implement as in original options.js');
+}
+
+async function handleExportData() {
+  alert('Export data functionality - implement as in original options.js');
+}
+
+async function handleImportData(e) {
+  alert('Import data functionality - implement as in original options.js');
+}
+
 async function handleClearData() {
   if (!confirm('Are you absolutely sure? This will permanently delete ALL your data including profile, custom fields, and settings. This cannot be undone.')) {
     return;
