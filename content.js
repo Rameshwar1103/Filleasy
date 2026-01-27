@@ -478,12 +478,11 @@ async function fillForm(profile, customFields = {}, preview = false) {
   }
 
   // Match each field using ML
-  // Around line 360-380 in content.js
 for (const field of fields) {
   let match = null;
   let value = null;
   
-  // ✅ Preprocess the field label using the static method
+  // Preprocess the field label using the static method
   let fieldLabelToMatch = field.label;
   let hasNAInstruction = false;
   
@@ -506,7 +505,7 @@ for (const field of fields) {
     MLMatcher = window.MLFieldMatcher;
   }
   
-  // ✅ Use handleNAFields for fields that might require "NA"
+  // Use handleNAFields for fields that might require "NA"
   if (MLMatcher && MLMatcher.handleNAFields) {
     // Check if field requires NA (use ORIGINAL label for NA detection)
     const requiresNA = hasNAInstruction ||

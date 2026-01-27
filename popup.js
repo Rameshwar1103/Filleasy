@@ -336,28 +336,44 @@ function updateProfilePreview() {
  */
 function updateCustomFieldsList() {
   const listEl = document.getElementById('custom-fields-list');
-  if (!listEl) return;
+  if (!listEl) return; 
+
+  listEl.innerHTML = '';
 
   const fields = Object.entries(customFields);
-  
+
   if (fields.length === 0) {
     listEl.innerHTML = '<p class="empty-state">No custom fields yet. Click + to add.</p>';
     return;
   }
 
-  listEl.innerHTML = fields.map(([key, field]) => `
-    <div class="custom-field-item">
+  fields.forEach(([key, field]) => {
+    const item = document.createElement('div');
+    item.className = 'custom-field-item';
+    item.dataset.key = key;
+
+    item.innerHTML = `
       <div class="field-info">
         <div class="field-key">${field.label || key}</div>
         <div class="field-value">${field.value || '(empty)'}</div>
       </div>
       <div class="custom-field-actions">
-        <button class="icon-btn small" onclick="editCustomField('${key}')" title="Edit">✏️</button>
-        <button class="icon-btn small" onclick="deleteCustomField('${key}')" title="Delete">🗑️</button>
+        <button class="icon-btn small edit-btn" title="Edit">✏️</button>
+        <button class="icon-btn small delete-btn" title="Delete">🗑️</button>
       </div>
-    </div>
-  `).join('');
+    `;
+
+    //attach listeners AFTER creation
+    item.querySelector('.edit-btn')
+      .addEventListener('click', () => editCustomField(key));
+
+    item.querySelector('.delete-btn')
+      .addEventListener('click', () => deleteCustomField(key));
+
+    listEl.appendChild(item);
+  });
 }
+
 
 /**
  * Update security status
@@ -552,7 +568,7 @@ async function handleAddCustomField(e) {
 }
 
 /**
- * Edit custom field (global function for onclick)
+ * Edit custom field (global function for on clicking it)
  */
 window.editCustomField = async function(key) {
   const field = customFields[key];
@@ -586,7 +602,7 @@ window.editCustomField = async function(key) {
 };
 
 /**
- * Delete custom field (global function for onclick)
+ * Delete custom field (global function for on clicking it)
  */
 window.deleteCustomField = async function(key) {
   if (!confirm(`Delete custom field "${customFields[key]?.label || key}"?`)) {
@@ -611,7 +627,7 @@ function showTemplateModal() {
     const template = ScholarshipTemplates.getTemplate(name);
     const fieldCount = Object.keys(template).length;
     return `
-      <div class="template-item" onclick="applyTemplate('${name}')">
+      <div class="template-item" on clicking it="applyTemplate('${name}')">
         <h4>${name}</h4>
         <p>${fieldCount} fields</p>
       </div>

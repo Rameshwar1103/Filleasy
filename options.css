@@ -445,3 +445,11 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+#import-file-input {
+  display: none;
+}
+
+#custom-field-modal-options {
+  display: none;
+}

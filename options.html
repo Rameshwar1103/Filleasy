@@ -14,8 +14,6 @@
       <nav class="nav-tabs">
         <button class="tab-btn active" data-tab="profile">Profile</button>
         <button class="tab-btn" data-tab="custom">Custom Fields</button>
-        <button class="tab-btn" data-tab="settings">Settings</button>
-        <button class="tab-btn" data-tab="ml">ML Stats</button>
         <button class="tab-btn" data-tab="security">Security</button>
       </nav>
     </header>
@@ -74,39 +72,12 @@
               <input type="text" id="prnNumber" placeholder="PRN Number">
             </div>
             <div class="form-group">
-              <label for="rollNumber">Roll Number</label>
-              <input type="text" id="rollNumber" placeholder="Roll Number">
-            </div>
-            <div class="form-group">
               <label for="physicallyChallenged">Physically Challenged</label>
               <select id="physicallyChallenged">
                 <option value="">Select</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
-            </div>
-          </div>
-        </section>
-
-        <!-- College Details -->
-        <section class="section">
-          <h2>College Details</h2>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="collegeName">College Name</label>
-              <input type="text" id="collegeName" placeholder="College/University Name">
-            </div>
-            <div class="form-group">
-              <label for="collegeCity">City</label>
-              <input type="text" id="collegeCity" placeholder="City">
-            </div>
-            <div class="form-group">
-              <label for="collegeState">State</label>
-              <input type="text" id="collegeState" placeholder="State">
-            </div>
-            <div class="form-group">
-              <label for="collegePincode">Pincode</label>
-              <input type="text" id="collegePincode" placeholder="6 digits" maxlength="6">
             </div>
           </div>
         </section>
@@ -119,10 +90,9 @@
               <label for="currentHouseNumber">House Number</label>
               <input type="text" id="currentHouseNumber" placeholder="House/Apartment Number">
             </div>
-            <!-- Change line ~114 from currentStreetAddress to: -->
             <div class="form-group full-width">
-              <label for="currentStreet">Street Address</label>
-              <input type="text" id="currentStreet" placeholder="Street Address">
+              <label for="currentAddress">Address</label>
+              <input type="text" id="currentAddress" placeholder="current Address">
             </div>
             <div class="form-group">
               <label for="currentCity">City</label>
@@ -147,10 +117,9 @@
               <label for="permanentHouseNumber">House Number</label>
               <input type="text" id="permanentHouseNumber" placeholder="House/Apartment Number">
             </div>
-            <!-- Change line ~136 from permanentStreetAddress to: -->
             <div class="form-group full-width">
-              <label for="permanentStreet">Street Address</label>
-              <input type="text" id="permanentStreet" placeholder="Street Address">
+              <label for="permanentAddress">Address</label>
+              <input type="text" id="permanentAddress" placeholder="permanent Address">
             </div>
             <div class="form-group">
               <label for="permanentCity">City</label>
@@ -178,7 +147,6 @@
               <label for="tenthPercentage">10th Percentage / Marks</label>
               <input type="number" id="tenthPercentage" min="0" max="100" step="0.01" placeholder="Percentage">
             </div>
-            <!-- Change line ~159 from tenthYear to: -->
             <div class="form-group">
               <label for="tenthPassingYear">10th Passing Year</label>
               <input type="number" id="tenthPassingYear" min="1990" max="2030" placeholder="Year">
@@ -200,7 +168,6 @@
               <label for="twelfthPercentage">12th Percentage / Marks</label>
               <input type="number" id="twelfthPercentage" min="0" max="100" step="0.01" placeholder="Percentage">
             </div>
-            <!-- Change line ~177 from twelfthYear to: -->
             <div class="form-group">
               <label for="twelfthPassingYear">12th Passing Year</label>
               <input type="number" id="twelfthPassingYear" min="1990" max="2030" placeholder="Year">
@@ -260,20 +227,24 @@
           <h3>College</h3>
           <div class="form-grid">
             <div class="form-group">
-              <label for="collegeNameAcademic">College Name</label>
-              <input type="text" id="collegeNameAcademic" placeholder="College Name">
+              <label for="collegeName">College Name</label>
+              <input type="text" id="collegeName" placeholder="College Name">
             </div>
             <div class="form-group">
-              <label for="collegeCityAcademic">College City</label>
-              <input type="text" id="collegeCityAcademic" placeholder="City">
+              <label for="universityName">University Name</label>
+              <input type="text" id="universityName" placeholder="University Name">
             </div>
             <div class="form-group">
-              <label for="collegeStateAcademic">State</label>
-              <input type="text" id="collegeStateAcademic" placeholder="State">
+              <label for="collegeCity">City</label>
+              <input type="text" id="collegeCity" placeholder="City">
             </div>
             <div class="form-group">
-              <label for="collegePincodeAcademic">Pincode</label>
-              <input type="text" id="collegePincodeAcademic" placeholder="6 digits" maxlength="6">
+              <label for="collegeState">State</label>
+              <input type="text" id="collegeState" placeholder="State">
+            </div>
+            <div class="form-group">
+              <label for="collegePincode">Pincode</label>
+              <input type="text" id="collegePincode" placeholder="6 digits" maxlength="6">
             </div>
             <div class="form-group">
               <label for="degree">Degree</label>
@@ -299,7 +270,7 @@
             <!-- Year-wise CGPA and Percentage -->
             <div class="form-group">
               <label for="firstYearCGPA">1st Year CGPA</label>
-              <input type="number" id="firstYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" onchange="calculateFirstYearPercentage()">
+              <input type="number" id="firstYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" >
             </div>
             <div class="form-group">
               <label for="firstYearPercentage">1st Year Percentage (Auto-calculated)</label>
@@ -307,7 +278,7 @@
             </div>
             <div class="form-group">
               <label for="secondYearCGPA">2nd Year CGPA</label>
-              <input type="number" id="secondYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" onchange="calculateSecondYearPercentage()">
+              <input type="number" id="secondYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" >
             </div>
             <div class="form-group">
               <label for="secondYearPercentage">2nd Year Percentage (Auto-calculated)</label>
@@ -315,7 +286,7 @@
             </div>
             <div class="form-group">
               <label for="thirdYearCGPA">3rd Year CGPA</label>
-              <input type="number" id="thirdYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" onchange="calculateThirdYearPercentage()">
+              <input type="number" id="thirdYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" >
             </div>
             <div class="form-group">
               <label for="thirdYearPercentage">3rd Year Percentage (Auto-calculated)</label>
@@ -323,7 +294,7 @@
             </div>
             <div class="form-group">
               <label for="fourthYearCGPA">4th Year CGPA</label>
-              <input type="number" id="fourthYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" onchange="calculateFourthYearPercentage()">
+              <input type="number" id="fourthYearCGPA" min="0" max="10" step="0.01" placeholder="CGPA" >
             </div>
             <div class="form-group">
               <label for="fourthYearPercentage">4th Year Percentage (Auto-calculated)</label>
@@ -331,7 +302,7 @@
             </div>
             <div class="form-group">
               <label for="aggregateCGPA">Aggregate CGPA</label>
-              <input type="number" id="aggregateCGPA" min="0" max="10" step="0.01" placeholder="CGPA" onchange="calculategraduationPercentage()">
+              <input type="number" id="aggregateCGPA" min="0" max="10" step="0.01" placeholder="CGPA" >
             </div>
             <div class="form-group">
               <label for="graduationPercentage">Aggregate Percentage (Auto-calculated)</label>
@@ -349,7 +320,6 @@
                 <option value="No">No</option>
               </select>
             </div>
-            <!-- Change line ~285 from collegeEmail to: -->
             <div class="form-group">
               <label for="collegeEmailId">College Email ID</label>
               <input type="email" id="collegeEmailId" placeholder="student@college.edu">
@@ -385,7 +355,6 @@
               <label for="technicalAchievements">Technical Achievements</label>
               <textarea id="technicalAchievements" rows="3" placeholder="Describe your technical achievements"></textarea>
             </div>
-            <!-- Change line ~319 from project to: -->
             <div class="form-group full-width">
              <label for="project">Projects</label>
              <textarea id="project" rows="4" placeholder="Describe your projects"></textarea>
@@ -397,6 +366,10 @@
             <div class="form-group">
               <label for="certificationAgency">Certification Agency</label>
               <input type="text" id="certificationAgency" placeholder="e.g., AWS, Google, Microsoft">
+            </div>
+            <div class="form-group full-width">
+              <label for="certificationLink">Certification Link</label>
+              <textarea id="certificationLink" rows="2" placeholder="https://"></textarea>
             </div>
             <div class="form-group">
               <label for="course">Course</label>
@@ -421,14 +394,6 @@
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
-            </div>
-            <div class="form-group full-width">
-              <label for="certificateLink">Certificate Link</label>
-              <input type="url" id="certificateLink" placeholder="https://...">
-            </div>
-            <div class="form-group full-width">
-              <label for="certificateUpload">Upload Certificate (PDF/JPG)</label>
-              <input type="file" id="certificateUpload" accept=".pdf,.jpg,.jpeg,.png">
             </div>
           </div>
         </section>
@@ -513,31 +478,12 @@
              <input type="url" id="twelfthMarksheetLink" placeholder="https://...">
             </div>
             <div class="form-group full-width">
-             <label for="collegeIdCardLink">College ID Card Link</label>
-             <input type="url" id="collegeIdCardLink" placeholder="https://...">
-            </div>
-            <div class="form-group full-width">
              <label for="passportPhotoLink">Passport Photo Link</label>
              <input type="url" id="passportPhotoLink" placeholder="https://...">
             </div>
             <div class="form-group full-width">
              <label for="resumeLink">Resume Link</label>
              <input type="url" id="resumeLink" placeholder="https://...">
-            </div>
-          </div>
-        </section>
-
-        <!-- Resume Upload -->
-        <section class="section">
-          <h2>Resume Upload</h2>
-          <div class="form-grid">
-            <div class="form-group full-width">
-              <label for="resumeUpload">Upload Resume (PDF)</label>
-              <input type="file" id="resumeUpload" accept=".pdf">
-            </div>
-            <div class="form-group full-width">
-              <label for="resumeLink">Resume Link (Alternative)</label>
-              <input type="url" id="resumeLink" placeholder="https://...">
             </div>
           </div>
         </section>
@@ -560,114 +506,6 @@
       </div>
     </div>
 
-    <!-- Settings Tab -->
-    <div id="settings-tab" class="tab-content">
-      <form id="settings-form">
-        <section class="section">
-          <h2>General Settings</h2>
-          <div class="form-group">
-            <label for="theme">Theme</label>
-            <select id="theme">
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="auto">Auto (System)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="autoFill">
-              <span>Auto-fill on form detection</span>
-            </label>
-          </div>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="showPreview">
-              <span>Show preview before filling</span>
-            </label>
-          </div>
-          <div class="form-group">
-            <label for="sessionTimeout">Session Timeout (minutes)</label>
-            <input type="number" id="sessionTimeout" min="5" max="60" value="15">
-          </div>
-          <div class="form-group">
-            <label for="mlConfidenceThreshold">ML Confidence Threshold</label>
-            <input type="number" id="mlConfidenceThreshold" min="0" max="1" step="0.1" value="0.7">
-            <p class="help-text">Fields with confidence below this will require preview (0.0 - 1.0)</p>
-          </div>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="mlAutoTrain">
-              <span>Auto-train ML model (improves accuracy over time)</span>
-            </label>
-          </div>
-        </section>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save Settings</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- ML Stats Tab -->
-    <div id="ml-tab" class="tab-content">
-      <section class="section">
-        <h2>ML Field Matcher Statistics</h2>
-        <div id="ml-stats-container">
-          <div class="ml-stats-grid">
-            <div class="stat-card">
-              <div class="stat-label">Vocabulary Size</div>
-              <div class="stat-value" id="ml-vocab-size">-</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Classes</div>
-              <div class="stat-value" id="ml-classes">-</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Training Examples</div>
-              <div class="stat-value" id="ml-examples">-</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Estimated Accuracy</div>
-              <div class="stat-value" id="ml-accuracy">95%</div>
-            </div>
-            <!-- ✅ NEW STAT CARD - ADD THIS BLOCK -->
-        <!-- ========================================== -->
-        <div class="stat-card">
-          <div class="stat-label">Cached Mappings</div>
-          <div class="stat-value" id="ml-cache-size">-</div>
-        </div>
-        <!-- ========================================== -->
-        <!-- ✅ NEW CODE ENDS HERE -->
-          </div>
-          
-          <div class="form-group" style="margin-top: 20px;">
-            <h3>Test ML Model</h3>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-              <input type="text" id="ml-test-input" placeholder="Enter field label (e.g., 'University PRN Number')" style="flex: 1; padding: 8px;">
-              <button class="btn btn-primary" id="ml-test-btn">Test</button>
-            </div>
-            <div id="ml-test-result" style="margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; display: none;">
-              <div style="font-weight: bold; margin-bottom: 8px;">Result:</div>
-              <div id="ml-test-output"></div>
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top: 20px;">
-            <h3>Model Information</h3>
-            <p class="help-text">
-              The ML model uses <strong>Bag of Words + Naive Bayes</strong> classification to match form fields.
-              It's trained on 100+ examples of Indian college and scholarship forms.
-            </p>
-            <p class="help-text" style="margin-top: 10px;">
-              <strong>Confidence Levels:</strong><br>
-              🟢 Green (≥80%): High confidence, auto-fills<br>
-              🟡 Yellow (60-80%): Medium confidence, shows preview<br>
-              🔴 Red (&lt;60%): Low confidence, requires manual review
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
 
     <!-- Security Tab -->
     <div id="security-tab" class="tab-content">
@@ -682,7 +520,7 @@
         </div>
         <div class="form-group">
           <button class="btn btn-secondary" id="import-data-btn">Import Data</button>
-          <input type="file" id="import-file-input" accept=".json" style="display: none;">
+          <input type="file" id="import-file-input" accept=".json" >
           <p class="help-text">Import previously exported data</p>
         </div>
         <div class="form-group danger-zone">
@@ -695,7 +533,7 @@
   </div>
 
   <!-- Modals -->
-  <div id="custom-field-modal-options" class="modal" style="display: none;">
+  <div id="custom-field-modal-options" class="modal" >
     <div class="modal-content">
       <div class="modal-header">
         <h3>Add Custom Field</h3>

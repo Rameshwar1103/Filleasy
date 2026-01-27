@@ -7,6 +7,18 @@ let customFields = {};
 let encryptionKey = null;
 let currentTab = 'profile';
 
+// error null value 
+function setValue(id, value = '') {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
+}
+
+function setChecked(id, value = false) {
+  const el = document.getElementById(id);
+  if (el) el.checked = value;
+}
+
+
 // Initialize options page
 document.addEventListener('DOMContentLoaded', async () => {
   await initializeOptions();
@@ -53,7 +65,6 @@ async function initializeOptions() {
     encryptionKey = await CryptoUtils.deriveKey(password, saltArray);
     
     await loadUserData();
-    await loadSettings();
     populateProfileForm();
     updateCustomFieldsList();
     
@@ -88,6 +99,7 @@ function setupEventListeners() {
   ['firstYearCGPA', 'secondYearCGPA', 'thirdYearCGPA', 'fourthYearCGPA', 'aggregateCGPA'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updatePercentages);
   });
+  document.getElementById('cgpaMultiplier')?.addEventListener('input', updatePercentages);
 
   document.getElementById('add-custom-field-options-btn')?.addEventListener('click', () => {
     showCustomFieldModal();
@@ -96,7 +108,6 @@ function setupEventListeners() {
   document.getElementById('cancel-field-options-btn')?.addEventListener('click', closeCustomFieldModal);
   document.getElementById('custom-field-form-options')?.addEventListener('submit', handleAddCustomField);
 
-  document.getElementById('settings-form')?.addEventListener('submit', handleSaveSettings);
 
   document.getElementById('ml-test-btn')?.addEventListener('click', handleMLTest);
   document.getElementById('ml-test-input')?.addEventListener('keypress', (e) => {
@@ -130,21 +141,44 @@ function updateFullName() {
 /**
  * Auto-calculate percentages from CGPA (percentage = 9.5 * CGPA)
  */
+
 function updatePercentages() {
+  const multiplier = parseFloat(document.getElementById('cgpaMultiplier')?.value) || 9.5;
+  
   const cgpaFields = [
     { cgpa: 'firstYearCGPA', percentage: 'firstYearPercentage' },
     { cgpa: 'secondYearCGPA', percentage: 'secondYearPercentage' },
     { cgpa: 'thirdYearCGPA', percentage: 'thirdYearPercentage' },
-    { cgpa: 'fourthYearCGPA', percentage: 'fourthYearPercentage' },
-    { cgpa: 'aggregateCGPA', percentage: 'graduationPercentage' }
+    { cgpa: 'fourthYearCGPA', percentage: 'fourthYearPercentage' }
   ];
 
+  // Calculate percentages for each year
   cgpaFields.forEach(({ cgpa, percentage }) => {
     const cgpaValue = parseFloat(document.getElementById(cgpa).value);
     if (!isNaN(cgpaValue) && cgpaValue > 0) {
-      document.getElementById(percentage).value = (9.5 * cgpaValue).toFixed(2);
+      document.getElementById(percentage).value = (multiplier * cgpaValue).toFixed(2);
+    } else {
+      document.getElementById(percentage).value = '';
     }
   });
+
+  // Auto-calculate aggregate CGPA (average of all years)
+  const yearCGPAs = [
+    parseFloat(document.getElementById('firstYearCGPA').value),
+    parseFloat(document.getElementById('secondYearCGPA').value),
+    parseFloat(document.getElementById('thirdYearCGPA').value),
+    parseFloat(document.getElementById('fourthYearCGPA').value)
+  ].filter(val => !isNaN(val) && val > 0);
+
+  if (yearCGPAs.length > 0) {
+    const avgCGPA = yearCGPAs.reduce((sum, val) => sum + val, 0) / yearCGPAs.length;
+    document.getElementById('aggregateCGPA').value = avgCGPA.toFixed(2);
+    document.getElementById('graduationPercentage').value = (multiplier * avgCGPA).toFixed(2);
+  } else {
+    // If no year CGPAs are entered, clear aggregate fields
+    document.getElementById('aggregateCGPA').value = '';
+    document.getElementById('graduationPercentage').value = '';
+  }
 }
 
 /**
@@ -212,150 +246,117 @@ async function saveUserData() {
 }
 
 /**
- * Load settings
- */
-async function loadSettings() {
-  const settings = await StorageManager.get('settings') || {};
-  
-  document.getElementById('theme').value = settings.theme || 'light';
-  document.getElementById('autoFill').checked = settings.autoFill !== false;
-  document.getElementById('showPreview').checked = settings.showPreview !== false;
-  document.getElementById('sessionTimeout').value = settings.sessionTimeout || 15;
-
-  loadMLStats();
-}
-
-/**
- * Save settings
- */
-async function handleSaveSettings(e) {
-  e.preventDefault();
-  
-  const settings = {
-    theme: document.getElementById('theme').value,
-    autoFill: document.getElementById('autoFill').checked,
-    showPreview: document.getElementById('showPreview').checked,
-    sessionTimeout: parseInt(document.getElementById('sessionTimeout').value) || 15
-  };
-  
-  await StorageManager.save('settings', settings);
-  alert('Settings saved successfully!');
-}
-
-/**
  * Populate profile form with data
  */
 function populateProfileForm() {
   if (!profile) return;
 
   // Personal
-  document.getElementById('firstName').value = profile.personal?.firstName || '';
-  document.getElementById('middleName').value = profile.personal?.middleName || '';
-  document.getElementById('lastName').value = profile.personal?.lastName || '';
-  document.getElementById('fullName').value = profile.personal?.fullName || '';
-  document.getElementById('phone').value = profile.personal?.phone || '';
-  document.getElementById('gender').value = profile.personal?.gender || '';
-  document.getElementById('dateOfBirth').value = profile.personal?.dateOfBirth || '';
-  document.getElementById('email').value = profile.personal?.email || '';
-  document.getElementById('aadhaarNumber').value = profile.personal?.aadhaarNumber || '';
-  document.getElementById('prnNumber').value = profile.personal?.prnNumber || '';
-  document.getElementById('physicallyChallenged').value = profile.personal?.physicallyChallenged || '';
-
+  setValue('firstName', profile.personal?.firstName);
+  setValue('middleName', profile.personal?.middleName || '');
+  setValue('lastName', profile.personal?.lastName || '');
+  setValue('fullName', profile.personal?.fullName || '');
+  setValue('phone', profile.personal?.phone || '');
+  setValue('gender', profile.personal?.gender || '');
+  setValue('dateOfBirth', profile.personal?.dateOfBirth || '');
+  setValue('email', profile.personal?.email || '');
+  setValue('aadhaarNumber', profile.personal?.aadhaarNumber || '');
+  setValue('prnNumber', profile.personal?.prnNumber || '');
+  setValue('physicallyChallenged', profile.personal?.physicallyChallenged || '');
   // Current Address
-  document.getElementById('currentHouseNumber').value = profile.currentAddress?.houseNumber || '';
-  document.getElementById('currentStreet').value = profile.currentAddress?.street || '';
-  document.getElementById('currentCity').value = profile.currentAddress?.city || '';
-  document.getElementById('currentState').value = profile.currentAddress?.state || '';
-  document.getElementById('currentPincode').value = profile.currentAddress?.pincode || '';
+  setValue('currentHouseNumber', profile.currentAddress?.houseNumber || '');
+  setValue('currentAddress', profile.currentAddress?.address || '');
+  setValue('currentCity', profile.currentAddress?.city || '');
+  setValue('currentState', profile.currentAddress?.state || '');
+  setValue('currentPincode', profile.currentAddress?.pincode || '');
 
   // Permanent Address
-  document.getElementById('permanentHouseNumber').value = profile.permanentAddress?.houseNumber || '';
-  document.getElementById('permanentStreet').value = profile.permanentAddress?.street || '';
-  document.getElementById('permanentCity').value = profile.permanentAddress?.city || '';
-  document.getElementById('permanentState').value = profile.permanentAddress?.state || '';
-  document.getElementById('permanentPincode').value = profile.permanentAddress?.pincode || '';
+  setValue('permanentHouseNumber', profile.permanentAddress?.houseNumber || '');
+  setValue('permanentAddress', profile.permanentAddress?.address || '');
+  setValue('permanentCity', profile.permanentAddress?.city || '');
+  setValue('permanentState', profile.permanentAddress?.state || '');
+  setValue('permanentPincode', profile.permanentAddress?.pincode || '');
 
   // Academic - 10th
-  document.getElementById('tenthPercentage').value = profile.academic?.tenthPercentage || '';
-  document.getElementById('tenthBoard').value = profile.academic?.tenthBoard || '';
-  document.getElementById('tenthPassingYear').value = profile.academic?.tenthPassingYear || '';
-  document.getElementById('tenthSchoolName').value = profile.academic?.tenthSchoolName || '';
+  setValue('tenthPercentage', profile.academic?.tenthPercentage || '');
+  setValue('tenthBoard', profile.academic?.tenthBoard || '');
+  setValue('tenthPassingYear', profile.academic?.tenthPassingYear || '');
+  setValue('tenthSchoolName', profile.academic?.tenthSchoolName || '');
 
   // Academic - 12th
-  document.getElementById('twelfthPercentage').value = profile.academic?.twelfthPercentage || '';
-  document.getElementById('twelfthBoard').value = profile.academic?.twelfthBoard || '';
-  document.getElementById('twelfthPassingYear').value = profile.academic?.twelfthPassingYear || '';
-  document.getElementById('twelfthCollegeName').value = profile.academic?.twelfthCollegeName || '';
+  setValue('twelfthPercentage', profile.academic?.twelfthPercentage || '');
+  setValue('twelfthBoard', profile.academic?.twelfthBoard || '');
+  setValue('twelfthPassingYear', profile.academic?.twelfthPassingYear || '');
+  setValue('twelfthCollegeName', profile.academic?.twelfthCollegeName || '');
 
   // Academic - Diploma
-  document.getElementById('diplomaPercentage').value = profile.academic?.diplomaPercentage || '';
-  document.getElementById('diplomaCollege').value = profile.academic?.diplomaCollege || '';
-  document.getElementById('diplomaSpecialization').value = profile.academic?.diplomaSpecialization || '';
-  document.getElementById('diplomaPassingYear').value = profile.academic?.diplomaPassingYear || '';
+  setValue('diplomaPercentage', profile.academic?.diplomaPercentage || '');
+  setValue('diplomaCollege', profile.academic?.diplomaCollege || '');
+  setValue('diplomaSpecialization', profile.academic?.diplomaSpecialization || '');
+  setValue('diplomaPassingYear', profile.academic?.diplomaPassingYear || '');
 
   // Academic - MCA
-  document.getElementById('mcaPercentage').value = profile.academic?.mcaPercentage || '';
-  document.getElementById('mcaCollege').value = profile.academic?.mcaCollege || '';
-  document.getElementById('mcaSpecialization').value = profile.academic?.mcaSpecialization || '';
-  document.getElementById('mcaPassingYear').value = profile.academic?.mcaPassingYear || '';
+  setValue('mcaPercentage', profile.academic?.mcaPercentage || '');
+  setValue('mcaCollege', profile.academic?.mcaCollege || '');
+  setValue('mcaSpecialization', profile.academic?.mcaSpecialization || '');
+  setValue('mcaPassingYear', profile.academic?.mcaPassingYear || '');
 
   // Academic - College
-  document.getElementById('collegeName').value = profile.academic?.collegeName || '';
-  document.getElementById('collegeCity').value = profile.academic?.collegeCity || '';
-  document.getElementById('collegeState').value = profile.academic?.collegeState || '';
-  document.getElementById('collegePincode').value = profile.academic?.collegePincode || '';
-  document.getElementById('degree').value = profile.academic?.degree || '';
-  document.getElementById('branch').value = profile.academic?.branch || '';
-  document.getElementById('specialization').value = profile.academic?.specialization || '';
-  document.getElementById('currentSemester').value = profile.academic?.currentSemester || '';
-  
+  setValue('collegeName', profile.academic?.collegeName || '');
+  setValue('universityName', profile.academic?.universityName || '');
+  setValue('collegeCity', profile.academic?.collegeCity || '');
+  setValue('collegeState', profile.academic?.collegeState || '');
+  setValue('collegePincode', profile.academic?.collegePincode || '');
+  setValue('degree', profile.academic?.degree || '');
+  setValue('branch', profile.academic?.branch || '');
+  setValue('specialization', profile.academic?.specialization || '');
+  setValue('currentSemester', profile.academic?.currentSemester || ''); 
 
   // Year-wise CGPA
-  document.getElementById('firstYearCGPA').value = profile.academic?.firstYearCGPA || '';
-  document.getElementById('firstYearPercentage').value = profile.academic?.firstYearPercentage || '';
-  document.getElementById('secondYearCGPA').value = profile.academic?.secondYearCGPA || '';
-  document.getElementById('secondYearPercentage').value = profile.academic?.secondYearPercentage || '';
-  document.getElementById('thirdYearCGPA').value = profile.academic?.thirdYearCGPA || '';
-  document.getElementById('thirdYearPercentage').value = profile.academic?.thirdYearPercentage || '';
-  document.getElementById('fourthYearCGPA').value = profile.academic?.fourthYearCGPA || '';
-  document.getElementById('fourthYearPercentage').value = profile.academic?.fourthYearPercentage || '';
-  document.getElementById('aggregateCGPA').value = profile.academic?.aggregateCGPA || '';
-  document.getElementById('graduationPercentage').value = profile.academic?.graduationPercentage || '';
-
+  setValue('firstYearCGPA', profile.academic?.firstYearCGPA || '');
+  setValue('firstYearPercentage', profile.academic?.firstYearPercentage || '');
+  setValue('secondYearCGPA', profile.academic?.secondYearCGPA || '');
+  setValue('secondYearPercentage', profile.academic?.secondYearPercentage || '');
+  setValue('thirdYearCGPA', profile.academic?.thirdYearCGPA || '');
+  setValue('thirdYearPercentage', profile.academic?.thirdYearPercentage || '');
+  setValue('fourthYearCGPA', profile.academic?.fourthYearCGPA || '');
+  setValue('fourthYearPercentage', profile.academic?.fourthYearPercentage || '');
+  setValue('cgpaMultiplier', profile.academic?.cgpaMultiplier || '9.5');
+  setValue('aggregateCGPA', profile.academic?.aggregateCGPA || '');
+  setValue('graduationPercentage', profile.academic?.graduationPercentage || '');
   // Other academic
-  document.getElementById('backlogs').value = profile.academic?.backlogs || '';
-  document.getElementById('collegeEmailId').value = profile.academic?.collegeEmailId || '';
-  document.getElementById('yearOfGraduation').value = profile.academic?.yearOfGraduation || '';
+  setValue('backlogs', profile.academic?.backlogs || '');
+  setValue('collegeEmailId', profile.academic?.collegeEmailId || '');
+  setValue('yearOfGraduation', profile.academic?.yearOfGraduation || '');
 
   // Technical
-  document.getElementById('programmingLanguages').value = profile.technical?.programmingLanguages || '';
-  document.getElementById('languages').value = profile.technical?.languages || '';
-  document.getElementById('personalAchievements').value = profile.technical?.personalAchievements || '';
-  document.getElementById('technicalSkills').value = profile.technical?.technicalSkills || '';
-  document.getElementById('technicalAchievements').value = profile.technical?.technicalAchievements || '';
-  document.getElementById('project').value = profile.technical?.project || '';
+  setValue('programmingLanguages', profile.technical?.programmingLanguages || '');
+  setValue('languages', profile.technical?.languages || '');
+  setValue('personalAchievements', profile.technical?.personalAchievements || '');
+  setValue('technicalSkills', profile.technical?.technicalSkills || '');
+  setValue('technicalAchievements', profile.technical?.technicalAchievements || '');
+  setValue('project', profile.technical?.project || '');
 
   // Coding
-  document.getElementById('linkedinLink').value = profile.coding?.linkedinLink || '';
-  document.getElementById('leetcodeScore').value = profile.coding?.leetcodeScore || '';
-  document.getElementById('leetcodeLink').value = profile.coding?.leetcodeLink || '';
-  document.getElementById('gfgScore').value = profile.coding?.gfgScore || '';
-  document.getElementById('gfgLink').value = profile.coding?.gfgLink || '';
-  document.getElementById('cocubesScore').value = profile.coding?.cocubesScore || '';
-  document.getElementById('codechefRank').value = profile.coding?.codechefRank || '';
-  document.getElementById('codechefLink').value = profile.coding?.codechefLink || '';
-  document.getElementById('hackerearthRating').value = profile.coding?.hackerearthRating || '';
-  document.getElementById('hackerearthLink').value = profile.coding?.hackerearthLink || '';
-  document.getElementById('hackerrankRating').value = profile.coding?.hackerrankRating || '';
-  document.getElementById('hackerrankLink').value = profile.coding?.hackerrankLink || '';
-  document.getElementById('githubLink').value = profile.coding?.githubLink || '';
-  document.getElementById('resumeLink').value = profile.coding?.resumeLink || '';
-
+  setValue('linkedinLink', profile.coding?.linkedinLink || '');
+  setValue('leetcodeScore', profile.coding?.leetcodeScore || '');
+  setValue('leetcodeLink', profile.coding?.leetcodeLink || '');
+  setValue('gfgScore', profile.coding?.gfgScore || '');
+  setValue('gfgLink', profile.coding?.gfgLink || '');
+  setValue('cocubesScore', profile.coding?.cocubesScore || '');
+  setValue('codechefRank', profile.coding?.codechefRank || '');
+  setValue('codechefLink', profile.coding?.codechefLink || '');
+  setValue('hackerearthRating', profile.coding?.hackerearthRating || '');
+  setValue('hackerearthLink', profile.coding?.hackerearthLink || '');
+  setValue('hackerrankRating', profile.coding?.hackerrankRating || '');
+  setValue('hackerrankLink', profile.coding?.hackerrankLink || '');
+  setValue('githubLink', profile.coding?.githubLink || '');
+  setValue('certificationLink', profile.coding?.certificationLink|| '');
+  setValue('resumeLink', profile.coding?.resumeLink || '');
   // Documents
-  document.getElementById('tenthMarksheetLink').value = profile.documents?.tenthMarksheetLink || '';
-  document.getElementById('twelfthMarksheetLink').value = profile.documents?.twelfthMarksheetLink || '';
-  document.getElementById('collegeIdCardLink').value = profile.documents?.collegeIdCardLink || '';
-  document.getElementById('passportPhotoLink').value = profile.documents?.passportPhotoLink || '';
+  setValue('tenthMarksheetLink', profile.documents?.tenthMarksheetLink || '');
+  setValue('twelfthMarksheetLink', profile.documents?.twelfthMarksheetLink || '');
+  setValue('passportPhotoLink', profile.documents?.passportPhotoLink || '');
 }
 
 /**
@@ -395,14 +396,14 @@ async function handleSaveProfile(e) {
     },
     currentAddress: {
       houseNumber: document.getElementById('currentHouseNumber').value.trim(),
-      street: document.getElementById('currentStreet').value.trim(),
+      address: document.getElementById('currentAddress').value.trim(),
       city: document.getElementById('currentCity').value.trim(),
       state: document.getElementById('currentState').value.trim(),
       pincode: document.getElementById('currentPincode').value.trim()
     },
     permanentAddress: {
       houseNumber: document.getElementById('permanentHouseNumber').value.trim(),
-      street: document.getElementById('permanentStreet').value.trim(),
+      address: document.getElementById('permanentAddress').value.trim(),
       city: document.getElementById('permanentCity').value.trim(),
       state: document.getElementById('permanentState').value.trim(),
       pincode: document.getElementById('permanentPincode').value.trim()
@@ -426,12 +427,14 @@ async function handleSaveProfile(e) {
       mcaSpecialization: document.getElementById('mcaSpecialization').value.trim(),
       mcaPassingYear: document.getElementById('mcaPassingYear').value,
       collegeName: collegeName,
+      universityName: document.getElementById('universityName').value.trim(),
       collegeCity: document.getElementById('collegeCity').value.trim(),
       collegeState: document.getElementById('collegeState').value.trim(),
       collegePincode: document.getElementById('collegePincode').value.trim(),
       degree: document.getElementById('degree').value.trim(),
       branch: document.getElementById('branch').value.trim(),
       specialization: document.getElementById('specialization').value.trim(),
+      cgpaMultiplier: document.getElementById('cgpaMultiplier').value || '9.5',
       currentSemester: document.getElementById('currentSemester').value,
       firstYearCGPA: document.getElementById('firstYearCGPA').value,
       firstYearPercentage: document.getElementById('firstYearPercentage').value,
@@ -454,7 +457,8 @@ async function handleSaveProfile(e) {
       technicalSkills: document.getElementById('technicalSkills').value.trim(),
       technicalAchievements: document.getElementById('technicalAchievements').value.trim(),
       project: document.getElementById('project').value.trim(),
-      certifications: [],
+      certifications: document.getElementById('certification').value.trim(),
+      certificationLinks: document.getElementById('certificationLink').value.trim(),  
       internships: []
     },
     coding: {
@@ -476,7 +480,6 @@ async function handleSaveProfile(e) {
   documents: {
       tenthMarksheetLink: document.getElementById('tenthMarksheetLink').value.trim(),
       twelfthMarksheetLink: document.getElementById('twelfthMarksheetLink').value.trim(),
-      collegeIdCardLink: document.getElementById('collegeIdCardLink').value.trim(),
       passportPhotoLink: document.getElementById('passportPhotoLink').value.trim(),
       resumeLink: document.getElementById('resumeLink').value.trim(),
       certificationCertificates: []
@@ -505,28 +508,41 @@ async function handleSaveProfile(e) {
  */
 function updateCustomFieldsList() {
   const listEl = document.getElementById('custom-fields-list-options');
-  if (!listEl) return;
+  if (!listEl) return; // ✅ guard
+
+  listEl.innerHTML = '';
 
   const fields = Object.entries(customFields);
-  
+
   if (fields.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">No custom fields yet. Click "Add Field" to create one.</div>';
+    listEl.innerHTML = '<div class="empty-state">No custom fields yet.</div>';
     return;
   }
 
-  listEl.innerHTML = fields.map(([key, field]) => `
-    <div class="custom-field-item-options">
-      <div class="field-info">
-        <div class="field-key">${field.label || key} (${field.category})</div>
-        <div class="field-value">${field.value || '(empty)'} - Type: ${field.type}</div>
-      </div>
+  fields.forEach(([key, field]) => {
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.dataset.key = key;
+
+    row.innerHTML = `
+      <span>${field.label || key}</span>
       <div class="custom-field-actions">
-        <button class="icon-btn" onclick="editCustomFieldOptions('${key}')" title="Edit">✏️</button>
-        <button class="icon-btn" onclick="deleteCustomFieldOptions('${key}')" title="Delete">🗑️</button>
+        <button class="icon-btn edit-btn" title="Edit">✏️</button>
+        <button class="icon-btn delete-btn" title="Delete">🗑️</button>
       </div>
-    </div>
-  `).join('');
+    `;
+
+    row.querySelector('.edit-btn')
+      .addEventListener('click', () => editCustomFieldOptions(key));
+
+    row.querySelector('.delete-btn')
+      .addEventListener('click', () => deleteCustomFieldOptions(key));
+
+    listEl.appendChild(row);
+  });
 }
+
+
 
 /**
  * Show custom field modal

@@ -589,3 +589,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* Hidden by default */
+#setup-screen,
+#dashboard-screen,
+#login-error,
+#lockout-message,
+#setup-error,
+#form-status,
+#custom-field-modal,
+#preview-modal,
+#template-modal {
+  display: none;
+}
