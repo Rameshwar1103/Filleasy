@@ -8,6 +8,7 @@ let currentScreen = 'login';
 let profile = null;
 let customFields = {};
 let encryptionKey = null;
+let currentPreviewData = {};
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
@@ -21,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializePopup() {
   // Check if master password is set
   const isPasswordSet = await AuthManager.isMasterPasswordSet();
-  
+
   if (!isPasswordSet) {
     showScreen('setup');
     return;
@@ -29,7 +30,7 @@ async function initializePopup() {
 
   // Check if authenticated
   const isAuthenticated = await AuthManager.isAuthenticated();
-  
+
   if (!isAuthenticated) {
     showScreen('login');
     return;
@@ -38,7 +39,8 @@ async function initializePopup() {
   // Get encryption key from background
   const response = await chrome.runtime.sendMessage({ action: 'getEncryptionKey' });
   if (response?.key) {
-    encryptionKey = response.key;
+    // Import key from JWK format
+    encryptionKey = await CryptoUtils.importKey(response.key);
     await loadUserData();
     showScreen('dashboard');
   } else {
@@ -110,12 +112,12 @@ function showScreen(screen) {
  */
 async function handleLogin(e) {
   e.preventDefault();
-  
+
   const passwordInput = document.getElementById('master-password');
   const password = passwordInput.value;
   const errorEl = document.getElementById('login-error');
   const lockoutEl = document.getElementById('lockout-message');
-  
+
   errorEl.style.display = 'none';
   lockoutEl.style.display = 'none';
 
@@ -146,11 +148,11 @@ async function handleLogin(e) {
  */
 async function handleSetup(e) {
   e.preventDefault();
-  
+
   const password = document.getElementById('setup-password').value;
   const confirm = document.getElementById('setup-confirm').value;
   const errorEl = document.getElementById('setup-error');
-  
+
   errorEl.style.display = 'none';
 
   if (password !== confirm) {
@@ -169,35 +171,36 @@ async function handleSetup(e) {
   try {
     // Generate salt as Uint8Array for key derivation
     const salt = CryptoUtils.generateSalt();
-    
+
     // Derive encryption key using the salt
     const key = await CryptoUtils.deriveKey(password, salt);
-    
+
     // Convert salt to base64 string for password hashing
     // hashPassword expects either null (to generate new) or base64 string (to use existing)
     const saltB64 = btoa(String.fromCharCode(...salt));
-    
+
     // Hash password using the same salt (pass as base64 string)
     const { hash } = await CryptoUtils.hashPassword(password, saltB64);
     await StorageManager.save('masterPasswordHash', hash);
     await StorageManager.save('masterPasswordSalt', saltB64);
-    
+
     // Store encryption key in background
-    await chrome.runtime.sendMessage({ action: 'storeEncryptionKey', key: key });
-    
+    const keyJwk = await CryptoUtils.exportKey(key);
+    await chrome.runtime.sendMessage({ action: 'storeEncryptionKey', key: keyJwk });
+
     // Create session
     await AuthManager.createSession(key);
-    
+
     encryptionKey = key;
-    
+
     // Initialize default profile
     profile = ProfileManager.getDefaultProfile();
     await saveUserData();
-    
+
     // Clear form
     document.getElementById('setup-password').value = '';
     document.getElementById('setup-confirm').value = '';
-    
+
     showScreen('dashboard');
   } catch (error) {
     errorEl.textContent = 'Setup failed: ' + error.message;
@@ -211,7 +214,7 @@ async function handleSetup(e) {
 function checkPasswordStrength() {
   const password = document.getElementById('setup-password').value;
   const strengthEl = document.getElementById('password-strength');
-  
+
   if (!password) {
     strengthEl.textContent = '';
     strengthEl.className = 'password-strength';
@@ -230,7 +233,7 @@ function checkPasswordMatch() {
   const password = document.getElementById('setup-password').value;
   const confirm = document.getElementById('setup-confirm').value;
   const matchEl = document.getElementById('password-match');
-  
+
   if (!confirm) {
     matchEl.textContent = '';
     matchEl.className = 'password-match';
@@ -254,7 +257,7 @@ function checkPasswordMatch() {
 function togglePasswordVisibility() {
   const input = document.getElementById('master-password');
   const toggle = document.getElementById('password-toggle');
-  
+
   if (input.type === 'password') {
     input.type = 'text';
     toggle.textContent = '🙈';
@@ -336,7 +339,7 @@ function updateProfilePreview() {
  */
 function updateCustomFieldsList() {
   const listEl = document.getElementById('custom-fields-list');
-  if (!listEl) return; 
+  if (!listEl) return;
 
   listEl.innerHTML = '';
 
@@ -386,14 +389,15 @@ function updateSecurityStatus() {
   }
 }
 
+
 /**
- * Handle fill all
+ * Handle fill all fields
  */
 async function handleFillAll() {
   try {
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab.url?.includes('docs.google.com/forms') && !tab.url?.includes('forms.gle')) {
       alert('Please navigate to a Google Form first.\n\nValid URLs:\n• https://docs.google.com/forms/...\n• https://forms.gle/...');
       return;
@@ -429,14 +433,12 @@ async function handleFillAll() {
     alert('Error: ' + error.message);
   }
 }
+/** Handle Preview */
 
-/**
- * Handle preview
- */
 async function handlePreview() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab.url?.includes('docs.google.com/forms') && !tab.url?.includes('forms.gle')) {
       alert('Please navigate to a Google Form first.\n\nValid URLs:\n• https://docs.google.com/forms/...\n• https://forms.gle/...');
       return;
@@ -469,19 +471,50 @@ async function handlePreview() {
 }
 
 /**
+ * Ensure content script is running
+ * Pings the tab, if no response, injects scripts
+ */
+async function ensureContentScript(tabId) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+    if (response && response.status === 'ready') {
+      return; // Script is running and ready
+    }
+  } catch (e) {
+    // Script not running or not responding, inject it
+    console.log('Content script not responsive, injecting...', e);
+  }
+
+  // Inject content script
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['lib/field-mapping-cache.js', 'lib/ml-field-matcher.js', 'content.js']
+    });
+    console.log('Content scripts injected successfully');
+
+    // Wait a bit for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 300));
+  } catch (injectError) {
+    console.error('Failed to inject content script:', injectError);
+    throw new Error('Could not load form filler on this page. The page might not allow extensions.');
+  }
+}
+
+/**
  * Show preview modal
  */
 function showPreviewModal(mappings) {
   const modal = document.getElementById('preview-modal');
   const content = document.getElementById('preview-content');
-  
+
   if (mappings.length === 0) {
     content.innerHTML = '<p class="empty-state">No matching fields found.</p>';
   } else {
     content.innerHTML = mappings.map(mapping => {
       const confidence = mapping.match.confidence || 0;
       const confidencePercent = (confidence * 100).toFixed(0);
-      
+
       // Determine confidence badge color
       let badgeColor = '🔴'; // Red < 60%
       if (confidence >= 0.8) {
@@ -489,22 +522,18 @@ function showPreviewModal(mappings) {
       } else if (confidence >= 0.6) {
         badgeColor = '🟡'; // Yellow 60-80%
       }
-      
+
       return `
         <div class="preview-mapping">
           <div class="field-label">${mapping.field.label}</div>
           <div class="field-value">${mapping.value}</div>
-          <div class="field-match" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-            → ${mapping.match.field} ${badgeColor} ${confidencePercent}%
-          </div>
         </div>
       `;
     }).join('');
   }
-  
+
   modal.style.display = 'flex';
 }
-
 /**
  * Close preview modal
  */
@@ -542,7 +571,7 @@ function closeCustomFieldModal() {
  */
 async function handleAddCustomField(e) {
   e.preventDefault();
-  
+
   const key = document.getElementById('field-key').value.trim();
   const label = document.getElementById('field-label').value.trim();
   const value = document.getElementById('field-value').value.trim();
@@ -570,7 +599,7 @@ async function handleAddCustomField(e) {
 /**
  * Edit custom field (global function for on clicking it)
  */
-window.editCustomField = async function(key) {
+window.editCustomField = async function (key) {
   const field = customFields[key];
   if (!field) return;
 
@@ -580,9 +609,9 @@ window.editCustomField = async function(key) {
   document.getElementById('field-value').value = field.value || '';
   document.getElementById('field-type').value = field.type;
   document.getElementById('field-category').value = field.category;
-  
+
   showCustomFieldModal();
-  
+
   // Update form submit handler
   const form = document.getElementById('custom-field-form');
   form.onsubmit = async (e) => {
@@ -604,7 +633,7 @@ window.editCustomField = async function(key) {
 /**
  * Delete custom field (global function for on clicking it)
  */
-window.deleteCustomField = async function(key) {
+window.deleteCustomField = async function (key) {
   if (!confirm(`Delete custom field "${customFields[key]?.label || key}"?`)) {
     return;
   }
@@ -620,9 +649,9 @@ window.deleteCustomField = async function(key) {
 function showTemplateModal() {
   const modal = document.getElementById('template-modal');
   const list = document.getElementById('template-list');
-  
+
   const templates = ScholarshipTemplates.getTemplateNames();
-  
+
   list.innerHTML = templates.map(name => {
     const template = ScholarshipTemplates.getTemplate(name);
     const fieldCount = Object.keys(template).length;
@@ -633,7 +662,7 @@ function showTemplateModal() {
       </div>
     `;
   }).join('');
-  
+
   modal.style.display = 'flex';
 }
 
@@ -647,7 +676,7 @@ function closeTemplateModal() {
 /**
  * Apply template (global function)
  */
-window.applyTemplate = async function(templateName) {
+window.applyTemplate = async function (templateName) {
   const template = ScholarshipTemplates.getTemplate(templateName);
   if (!template) return;
 
@@ -663,7 +692,7 @@ window.applyTemplate = async function(templateName) {
 async function checkFormDetected() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (tab.url?.includes('forms.google.com') || tab.url?.includes('forms.gle')) {
       const statusEl = document.getElementById('form-status');
       if (statusEl) {

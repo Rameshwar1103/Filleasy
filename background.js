@@ -3,6 +3,13 @@
  * Manages encryption key storage in memory (temporary)
  */
 
+// Load dependencies
+try {
+  importScripts('lib/crypto-utils.js', 'lib/storage-manager.js', 'lib/auth-manager.js');
+} catch (e) {
+  console.error('Failed to load dependencies:', e);
+}
+
 // In-memory storage for encryption keys (cleared on service worker restart)
 let encryptionKeyCache = null;
 let sessionTimer = null;
@@ -79,7 +86,7 @@ async function initializeExtension() {
       }
     });
   }
-  
+
   console.log('Filleasy extension installed');
 }
 
@@ -89,12 +96,12 @@ async function initializeExtension() {
 async function checkSession() {
   const session = await chrome.storage.local.get('session');
   if (!session.session) return false;
-  
+
   if (Date.now() > session.session.expiresAt) {
     await chrome.storage.local.remove('session');
     return false;
   }
-  
+
   return true;
 }
 
@@ -103,17 +110,17 @@ async function checkSession() {
  */
 function startSessionTimer() {
   clearSessionTimer();
-  
+
   sessionTimer = setTimeout(async () => {
     encryptionKeyCache = null;
-    const StorageManager = (await import('./lib/storage-manager.js')).StorageManager;
-    const AuthManager = (await import('./lib/auth-manager.js')).AuthManager;
+
+    // AuthManager is loaded globally via importScripts
     await AuthManager.clearSession();
-    
+
     // Notify all tabs that session expired
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, { action: 'sessionExpired' }).catch(() => {});
+        chrome.tabs.sendMessage(tab.id, { action: 'sessionExpired' }).catch(() => { });
       });
     });
   }, 15 * 60 * 1000); // 15 minutes
@@ -137,4 +144,3 @@ chrome.runtime.onStartup.addListener(() => {
   encryptionKeyCache = null;
   clearSessionTimer();
 });
-

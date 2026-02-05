@@ -116,7 +116,6 @@ function setupEventListeners() {
     }
   });
 
-  document.getElementById('change-password-btn')?.addEventListener('click', handleChangePassword);
   document.getElementById('export-data-btn')?.addEventListener('click', handleExportData);
   document.getElementById('import-data-btn')?.addEventListener('click', () => {
     document.getElementById('import-file-input').click();
@@ -702,16 +701,92 @@ function handleMLTest() {
   }
 }
 
-async function handleChangePassword() {
-  alert('Change password functionality - implement as in original options.js');
-}
 
+/**
+ * Handle Export Data
+ */
 async function handleExportData() {
-  alert('Export data functionality - implement as in original options.js');
+  try {
+    if (!profile || !customFields) {
+      alert('No data to export.');
+      return;
+    }
+
+    // Create export object with both profile and custom fields
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      profile: profile,
+      customFields: customFields
+    };
+
+    // Convert to JSON string
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    // Create blob and download link
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `filleasy-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert('Data exported successfully!');
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    alert('Error exporting data: ' + error.message);
+  }
 }
 
+/**
+ * Handle Import Data
+ */
 async function handleImportData(e) {
-  alert('Import data functionality - implement as in original options.js');
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const importData = JSON.parse(text);
+
+    // Validate import data structure
+    if (!importData.profile && !importData.customFields) {
+      alert('Invalid backup file format.');
+      return;
+    }
+
+    if (!confirm('This will overwrite your current data. Continue?')) {
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    // Import profile if exists
+    if (importData.profile) {
+      profile = importData.profile;
+    }
+
+    // Import custom fields if exists
+    if (importData.customFields) {
+      customFields = importData.customFields;
+    }
+
+    // Save imported data
+    const saved = await saveUserData();
+    if (saved) {
+      populateProfileForm();
+      updateCustomFieldsList();
+      alert('Data imported successfully!');
+    }
+
+    e.target.value = ''; // Reset file input
+  } catch (error) {
+    console.error('Error importing data:', error);
+    alert('Error importing data: ' + error.message);
+    e.target.value = ''; // Reset file input
+  }
 }
 
 async function handleClearData() {

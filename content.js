@@ -6,29 +6,20 @@
 /**
  * Initialize content script
  */
+/**
+ * Initialize content script
+ */
 (async function init() {
-  const cacheScript = document.createElement('script');
-  cacheScript.src = chrome.runtime.getURL('lib/field-mapping-cache.js');
-  (document.head || document.documentElement).appendChild(cacheScript);
-  
-  await new Promise(resolve => {
-    cacheScript.onload = async () => {
-      if (window.FieldMappingCache) {
-        await window.FieldMappingCache.load();
-        console.log('[Filleasy] Field mapping cache loaded');
-      }
-      resolve();
-    };
-  });
+  // Initialize cache
+  if (window.FieldMappingCache) {
+    await window.FieldMappingCache.load();
+    console.log('[Filleasy] Field mapping cache loaded');
+  } else {
+    console.warn('[Filleasy] FieldMappingCache not found');
+  }
 
-  // Inject ML field matcher script
-  const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('lib/ml-field-matcher.js');
-  script.onload = function() {
-    this.remove();
-    waitForForm();
-  };
-  (document.head || document.documentElement).appendChild(script);
+  // Start form detection
+  waitForForm();
 })();
 
 /**
@@ -55,7 +46,7 @@ function notifyFormDetected() {
   chrome.runtime.sendMessage({
     action: 'formDetected',
     url: window.location.href
-  }).catch(() => {});
+  }).catch(() => { });
 }
 
 /**
@@ -76,9 +67,15 @@ function setupFormObserver() {
  * Handle messages from popup/background
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'fillForm') {
-    fillForm(request.profile, request.customFields, request.preview)
-      .then(result => sendResponse({ success: true, result }))
+  if (request.action === 'ping') {
+    sendResponse({ status: 'ready', success: true });
+    return false;
+  } else if (request.action === 'fillForm') {
+    // Handle both old format (profile, customFields) and new format (data)
+    const data = request.data || { ...request.profile, ...request.customFields };
+
+    fillForm(data, request.preview)
+      .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open
   } else if (request.action === 'detectFields') {
@@ -94,7 +91,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 function detectFormFields() {
   const fields = [];
-  
+
   // Google Forms uses contenteditable divs for text inputs - detect those too
   document.querySelectorAll('[contenteditable="true"][role="textbox"]').forEach((div, index) => {
     const label = getFieldLabel(div);
@@ -109,7 +106,7 @@ function detectFormFields() {
       });
     }
   });
-  
+
   // Text inputs
   document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"]').forEach((input, index) => {
     const label = getFieldLabel(input);
@@ -136,7 +133,7 @@ function detectFormFields() {
 
   // Radio buttons (grouped)
   const radioGroups = new Map();
-  
+
   // Detect standard HTML radio buttons
   document.querySelectorAll('input[type="radio"]').forEach(radio => {
     const name = radio.getAttribute('name') || radio.getAttribute('data-params');
@@ -153,26 +150,26 @@ function detectFormFields() {
     const optionLabel = getRadioOptionLabel(radio);
     radioGroups.get(name).options.push({ value: radio.value, label: optionLabel, element: radio });
   });
-  
+
   // Detect Google Forms radio buttons (using role="radio")
   document.querySelectorAll('[role="radio"]').forEach(radioDiv => {
     // Skip if already processed as input[type="radio"]
     if (radioDiv.querySelector('input[type="radio"]')) return;
-    
+
     // Find the radio group container
-    const container = radioDiv.closest('[role="radiogroup"]') || 
-                     radioDiv.closest('[role="listitem"]') ||
-                     radioDiv.closest('.freebirdFormviewerViewItemsItemItem');
-    
+    const container = radioDiv.closest('[role="radiogroup"]') ||
+      radioDiv.closest('[role="listitem"]') ||
+      radioDiv.closest('.freebirdFormviewerViewItemsItemItem');
+
     if (!container) return;
-    
+
     // Get the field label from the container
     const fieldLabel = getFieldLabel(container);
     if (!fieldLabel) return;
-    
+
     // Use container as the group identifier
     const groupId = container.id || fieldLabel;
-    
+
     if (!radioGroups.has(groupId)) {
       radioGroups.set(groupId, {
         type: 'radio',
@@ -183,20 +180,20 @@ function detectFormFields() {
         isGoogleForms: true
       });
     }
-    
+
     // Get option label and value
     const optionLabel = getRadioOptionLabel(radioDiv);
     const radioInput = radioDiv.querySelector('input[type="radio"]');
     const optionValue = radioInput ? radioInput.value : optionLabel;
-    
-    radioGroups.get(groupId).options.push({ 
-      value: optionValue, 
-      label: optionLabel, 
+
+    radioGroups.get(groupId).options.push({
+      value: optionValue,
+      label: optionLabel,
       element: radioDiv,
       inputElement: radioInput || radioDiv
     });
   });
-  
+
   radioGroups.forEach((group, name) => {
     fields.push({ ...group, id: name });
   });
@@ -243,22 +240,22 @@ function detectFormFields() {
       options: options
     });
   });
-  
+
   // Google Forms dropdowns (using contenteditable divs with role="listbox" or combobox)
   // Google Forms dropdowns are typically divs with role="listbox" that contain a contenteditable div
   document.querySelectorAll('[role="listbox"]:not(select), [role="combobox"]:not(select)').forEach((dropdown, index) => {
     // Skip if already processed as select
     if (dropdown.tagName === 'SELECT') return;
-    
+
     const label = getFieldLabel(dropdown);
     if (label) {
       // Try to find the contenteditable input element inside
       const contentEditable = dropdown.querySelector('[contenteditable="true"]') || dropdown;
-      
+
       // Try to find options - they might be in a menu that appears on click
       // Look for common Google Forms dropdown structures
       const options = [];
-      
+
       // Method 1: Look for options already in DOM (sometimes they're hidden)
       const optionElements = dropdown.querySelectorAll('[role="option"], .freebirdFormviewerViewItemsItemItem, .exportSelectPopup, [data-value]');
       optionElements.forEach(opt => {
@@ -271,7 +268,7 @@ function detectFormFields() {
           });
         }
       });
-      
+
       // Method 2: Look for select element inside (some Google Forms use this)
       const selectElement = dropdown.querySelector('select');
       if (selectElement) {
@@ -286,7 +283,7 @@ function detectFormFields() {
           }
         });
       }
-      
+
       fields.push({
         type: 'select',
         label: label,
@@ -299,7 +296,7 @@ function detectFormFields() {
       });
     }
   });
-  
+
   // Also detect Google Forms dropdowns by looking for contenteditable divs with specific classes
   document.querySelectorAll('[contenteditable="true"].quantumWizTextinputPaperinputInput, [contenteditable="true"][aria-label]').forEach((input, index) => {
     // Check if this is a dropdown (has a dropdown indicator or specific structure)
@@ -386,13 +383,13 @@ function getRadioOptionLabel(radio) {
     if (role === 'radio') {
       const ariaLabel = radio.getAttribute('aria-label');
       if (ariaLabel) return ariaLabel.trim();
-      
+
       // Try to find text content (Google Forms often has text in child elements)
       const textContent = radio.textContent?.trim();
       if (textContent && textContent.length > 0 && textContent.length < 200) {
         return textContent;
       }
-      
+
       // Try to find label element or span with text
       const label = radio.querySelector('label, span, div[aria-label]');
       if (label) {
@@ -401,14 +398,14 @@ function getRadioOptionLabel(radio) {
       }
     }
   }
-  
+
   // For standard HTML radio inputs
   const roleRadio = radio.closest('[role="radio"]');
   if (roleRadio) {
     const ariaLabel = roleRadio.getAttribute('aria-label');
     if (ariaLabel) return ariaLabel.trim();
   }
-  
+
   // Try associated label element
   if (radio.id) {
     const associatedLabel = document.querySelector(`label[for="${radio.id}"]`);
@@ -416,13 +413,13 @@ function getRadioOptionLabel(radio) {
       return associatedLabel.textContent.trim();
     }
   }
-  
+
   // Try parent label
   const parentLabel = radio.closest('label');
   if (parentLabel && parentLabel.textContent) {
     return parentLabel.textContent.trim();
   }
-  
+
   // Fallback to value
   return radio.value || radio.textContent?.trim() || '';
 }
@@ -441,7 +438,7 @@ function getCheckboxOptionLabel(checkbox) {
 function generateSelector(element) {
   if (element.id) return `#${element.id}`;
   if (element.name) return `[name="${element.name}"]`;
-  
+
   // Generate path-based selector
   let path = [];
   while (element && element.nodeType === Node.ELEMENT_NODE) {
@@ -458,164 +455,226 @@ function generateSelector(element) {
 }
 
 /**
- * Fill form with profile data
- * @param {Object} profile - User profile
- * @param {Object} customFields - Custom fields
- * @param {boolean} preview - Show preview before filling
- * @returns {Promise<Object>} - Fill result
+ * Fill form with user data
+ * @param {Object} profileOrData - Either profile object (old format) or combined data object (new format)
+ * @param {Object} customFields - Custom fields object (only used in old format)
+ * @param {boolean} preview - If true, return mappings without filling
+ * @returns {Object} - Result object with success, mappings, and counts
  */
-async function fillForm(profile, customFields = {}, preview = false) {
-  const fields = detectFormFields();
-  const mappings = [];
+async function fillForm(profileOrData, customFields = {}, preview = false) {
+  try {
+    // Handle both old format (profile, customFields, preview) and new format (data, preview)
+    // New format: fillForm(data, preview) where data = { ...profile, ...customFields }
+    // Old format: fillForm(profile, customFields, preview)
 
-  // Build full name for full name fields
-  const fullName = buildFullName(profile);
+    let profile = {};
+    let fields_data = {};
 
-  // Wait for MLFieldMatcher to be available
-  let MLMatcher = null;
-  if (typeof window !== 'undefined' && window.MLFieldMatcher) {
-    MLMatcher = window.MLFieldMatcher;
-  }
+    // Detect which format is being used
+    if (typeof customFields === 'boolean') {
+      // New format: fillForm(data, preview)
+      // Second parameter is actually the preview flag
+      preview = customFields;
+      customFields = {};
 
-  // Match each field using ML
-for (const field of fields) {
-  let match = null;
-  let value = null;
-  
-  // Preprocess the field label using the static method
-  let fieldLabelToMatch = field.label;
-  let hasNAInstruction = false;
-  
-  if (typeof window !== 'undefined' && window.MLFieldMatcher && 
-      typeof window.MLFieldMatcher.preprocessFieldLabel === 'function') {
-    try {
-      const preprocessResult = window.MLFieldMatcher.preprocessFieldLabel(field.label);
-      fieldLabelToMatch = preprocessResult.cleaned;
-      hasNAInstruction = preprocessResult.hasNAInstruction;
-      console.log('[Filleasy] Preprocessed label:', field.label, '→', fieldLabelToMatch);
-    } catch (e) {
-      console.warn('[Filleasy] Preprocessing failed, using original label:', e);
-      fieldLabelToMatch = field.label;
-    }
-  }
-  
-  // Wait for MLFieldMatcher to be available
-  let MLMatcher = null;
-  if (typeof window !== 'undefined' && window.MLFieldMatcher) {
-    MLMatcher = window.MLFieldMatcher;
-  }
-  
-  // Use handleNAFields for fields that might require "NA"
-  if (MLMatcher && MLMatcher.handleNAFields) {
-    // Check if field requires NA (use ORIGINAL label for NA detection)
-    const requiresNA = hasNAInstruction ||
-                       /if\s+no\s+.*?\s+then\s+mention\s+["']?NA["']?/i.test(field.label) ||
-                       /mention\s+["']?NA["']?\s+if/i.test(field.label) ||
-                       /or\s+write\s+NA/i.test(field.label) ||
-                       /\(.*?NA.*?\)/i.test(field.label);
-    
-    if (requiresNA) {
-      // Use handleNAFields which returns "NA" if value is empty
-      value = MLMatcher.handleNAFields(field.label, profile, customFields);
-      
-      // Get the field prediction for confidence
-      const prediction = MLMatcher.matchField(fieldLabelToMatch);
-      match = {
-        field: prediction.predictedField,
-        value: value,
-        confidence: prediction.confidence,
-        type: 'ml-na'
-      };
+      // profileOrData contains everything
+      // Separate profile structure from custom fields
+      if (profileOrData.personal || profileOrData.academic || profileOrData.family) {
+        // It's structured profile data
+        profile = profileOrData;
+      } else {
+        // It's flat data - treat all as custom fields
+        fields_data = profileOrData;
+      }
     } else {
-      // Regular matching for fields without NA requirement using PREPROCESSED label
-      match = MLMatcher.matchFieldWithValue(fieldLabelToMatch, profile, customFields);
+      // Old format: fillForm(profile, customFields, preview)
+      profile = profileOrData;
+      fields_data = { ...customFields };
     }
-  } else if (MLMatcher && MLMatcher.matchFieldWithValue) {
-    // Fallback to regular matching if handleNAFields not available
-    match = MLMatcher.matchFieldWithValue(fieldLabelToMatch, profile, customFields);
-  }
-    
-    if (match) {
-      // Use value from handleNAFields if already set, otherwise use match.value
-      if (value === null) {
-        value = match.value;
-      }
 
-      // Special handling for full name - construct from firstName + middleName + lastName
-      if (match.field === 'fullName' || field.label.toLowerCase().includes('full name')) {
-        const parts = [
-          profile?.personal?.firstName,
-          profile?.personal?.middleName,
-          profile?.personal?.lastName
-        ].filter(Boolean);
-        value = parts.join(' ').trim();
-      }
+    // Detect all form fields on the page
+    const formFields = detectFormFields();
 
-      // Format dates
-      if (field.type === 'date' && match.field === 'dateOfBirth') {
-        value = formatDate(value, 'YYYY-MM-DD');
-      }
+    console.log('[Filleasy] Detected', formFields.length, 'form fields');
 
-      // Handle dropdown/select fields - find exact match in options
-      if ((field.type === 'select' || field.type === 'radio') && match.confidence >= 0.8) {
-        const dropdownMatch = findExactDropdownMatch(field, value, match.field);
-        if (dropdownMatch) {
-          value = dropdownMatch;
+    if (!formFields || formFields.length === 0) {
+      console.warn('[Filleasy] No form fields detected on page');
+      return {
+        success: false,
+        error: 'No form fields detected',
+        mappings: [],
+        filledCount: 0,
+        totalFields: 0
+      };
+    }
+
+    const mappings = [];
+
+    // Build full name for full name fields
+    const fullName = buildFullName(profile);
+
+    // Wait for MLFieldMatcher to be available
+    let MLMatcher = null;
+    if (typeof window !== 'undefined' && window.MLFieldMatcher) {
+      MLMatcher = window.MLFieldMatcher;
+    }
+
+    // Match each field using ML
+    for (const field of formFields) {
+      let match = null;
+      let value = null;
+
+      // Preprocess the field label using the static method
+      let fieldLabelToMatch = field.label;
+      let hasNAInstruction = false;
+
+      if (MLMatcher && typeof MLMatcher.preprocessFieldLabel === 'function') {
+        try {
+          const preprocessResult = MLMatcher.preprocessFieldLabel(field.label);
+          fieldLabelToMatch = preprocessResult.cleaned;
+          hasNAInstruction = preprocessResult.hasNAInstruction;
+          console.log('[Filleasy] Preprocessed label:', field.label, '→', fieldLabelToMatch);
+        } catch (e) {
+          console.warn('[Filleasy] Preprocessing failed, using original label:', e);
+          fieldLabelToMatch = field.label;
         }
       }
 
-      mappings.push({
-        field: field,
-        match: match,
-        value: value
-      });
-    }
-  }
+      // Use handleNAFields for fields that might require "NA"
+      if (MLMatcher && MLMatcher.handleNAFields) {
+        // Check if field requires NA (use ORIGINAL label for NA detection)
+        const requiresNA = hasNAInstruction ||
+          /if\s+no\s+.*?\s+then\s+mention\s+["']?NA["']?/i.test(field.label) ||
+          /mention\s+["']?NA["']?\s+if/i.test(field.label) ||
+          /or\s+write\s+NA/i.test(field.label) ||
+          /\(.*?NA.*?\)/i.test(field.label);
 
-  if (preview) {
-    // Return mappings for preview (don't fill yet)
-    return { mappings, fields, preview: true };
-  }
+        if (requiresNA) {
+          // Use handleNAFields which returns "NA" if value is empty
+          value = MLMatcher.handleNAFields(field.label, profile, fields_data);
 
-  // Fill the form
-  let filled = 0;
-  for (const mapping of mappings) {
-    try {
-      // Pass predicted field to fillField for better matching
-      if (fillField(mapping.field, mapping.value, mapping.predictedField)) {
-        filled++;
-        // Store successful mapping in cache
-                if (window.FieldMappingCache && mapping.match) {
-                  try {
-                    await window.FieldMappingCache.store(
-                      mapping.field.label,
-                      mapping.match.field,
-                      mapping.match.confidence
-                    );
-                    console.log('[Filleasy] Cached:', mapping.field.label);
-                  } catch (cacheError) {
-                    console.warn('[Filleasy] Cache error:', cacheError);
-                  }
-                }
+          // Get the field prediction for confidence
+          const prediction = MLMatcher.matchField(fieldLabelToMatch);
+          match = {
+            field: prediction.predictedField,
+            value: value,
+            confidence: prediction.confidence,
+            type: 'ml-na'
+          };
+        } else {
+          // Regular matching for fields without NA requirement using PREPROCESSED label
+          match = MLMatcher.matchFieldWithValue(fieldLabelToMatch, profile, fields_data);
+        }
+      } else if (MLMatcher && MLMatcher.matchFieldWithValue) {
+        // Fallback to regular matching if handleNAFields not available
+        match = MLMatcher.matchFieldWithValue(fieldLabelToMatch, profile, fields_data);
       }
-    } catch (error) {
-      console.error('Error filling field:', error);
+
+      if (match) {
+        // Use value from handleNAFields if already set, otherwise use match.value
+        if (value === null) {
+          value = match.value;
+        }
+
+        // Special handling for full name - construct from firstName + middleName + lastName
+        if (match.field === 'fullName' || field.label.toLowerCase().includes('full name')) {
+          const parts = [
+            profile?.personal?.firstName,
+            profile?.personal?.middleName,
+            profile?.personal?.lastName
+          ].filter(Boolean);
+          value = parts.join(' ').trim();
+        }
+
+        // Format dates
+        if (field.type === 'date' && match.field === 'dateOfBirth') {
+          value = formatDate(value, 'YYYY-MM-DD');
+        }
+
+        // Handle dropdown/select fields - find exact match in options
+        if ((field.type === 'select' || field.type === 'radio') && match.confidence >= 0.8) {
+          const dropdownMatch = findExactDropdownMatch(field, value, match.field);
+          if (dropdownMatch) {
+            value = dropdownMatch;
+          }
+        }
+
+        mappings.push({
+          field: field,
+          match: match,
+          value: value
+        });
+      }
     }
+
+    // If preview mode, return mappings without filling
+    if (preview) {
+      console.log('[Filleasy] Preview mode - returning', mappings.length, 'mappings');
+      return {
+        success: true,
+        mappings: mappings,
+        fields: formFields,
+        preview: true,
+        filledCount: 0,
+        totalFields: formFields.length
+      };
+    }
+
+    // Fill the form (not preview mode)
+    let filled = 0;
+    for (const mapping of mappings) {
+      try {
+        // Pass predicted field to fillField for better matching
+        if (fillField(mapping.field, mapping.value, mapping.match?.field)) {
+          filled++;
+          // Store successful mapping in cache
+          if (window.FieldMappingCache && mapping.match) {
+            try {
+              await window.FieldMappingCache.store(
+                mapping.field.label,
+                mapping.match.field,
+                mapping.match.confidence
+              );
+              console.log('[Filleasy] Cached:', mapping.field.label);
+            } catch (cacheError) {
+              console.warn('[Filleasy] Cache error:', cacheError);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Filleasy] Error filling field:', mapping.field.label, error);
+      }
+    }
+
+    // Cleanup cache occasionally (10% chance)
+    if (window.FieldMappingCache && Math.random() < 0.1) {
+      try {
+        await window.FieldMappingCache.cleanup();
+        console.log('[Filleasy] Cache cleaned');
+      } catch (cleanupError) {
+        console.warn('[Filleasy] Cleanup failed:', cleanupError);
+      }
+    }
+
+    console.log('[Filleasy] Successfully filled', filled, 'out of', mappings.length, 'matched fields');
+
+    return {
+      success: true,
+      filledCount: filled,
+      totalFields: formFields.length,
+      mappings: mappings
+    };
+
+  } catch (error) {
+    console.error('[Filleasy] Error in fillForm:', error);
+    return {
+      success: false,
+      error: error.message,
+      mappings: [],
+      filledCount: 0,
+      totalFields: 0
+    };
   }
-   if (window.FieldMappingCache && Math.random() < 0.1) {
-                try {
-                  await window.FieldMappingCache.cleanup();
-                  console.log('[Filleasy] Cache cleaned');
-                } catch (cleanupError) {
-                  console.warn('[Filleasy] Cleanup failed:', cleanupError);
-                }
-              }
-  return {
-    success: true,
-    filled: filled,
-    total: fields.length,
-    mappings: mappings
-  };
 }
 
 /**
@@ -681,18 +740,18 @@ function fillField(fieldInfo, value, predictedField = null) {
         let valueToMatch = value;
         const fieldLabel = fieldInfo.label || '';
         // Check if field is year-related by label or predicted field
-        const isYearFieldByLabel = /\b(year|graduation|passing|completion)\b/i.test(fieldLabel) ||predictedField === 'yearOfGraduation' ||
-                                   predictedField === 'CurrentYear' || predictedField === 'yearOfStudy';
-        
+        const isYearFieldByLabel = /\b(year|graduation|passing|completion)\b/i.test(fieldLabel) || predictedField === 'yearOfGraduation' ||
+          predictedField === 'CurrentYear' || predictedField === 'yearOfStudy';
+
         // Also check if options are all 4-digit years (suggests graduation year field)
         const optionsAreYears = fieldInfo.options && fieldInfo.options.length > 0 &&
           fieldInfo.options.every(opt => {
             const optValue = String(opt.value || opt.label || '').trim();
             return /^\d{4}$/.test(optValue);
           });
-        
+
         const isYearField = isYearFieldByLabel || optionsAreYears;
-        
+
         // If value is a single digit (1-4) and options are years (4-digit), convert year of study to graduation year
         if (isYearField && /^[1-4]$/.test(String(value).trim()) && optionsAreYears) {
           const yearOfStudy = parseInt(String(value).trim(), 10);
@@ -707,7 +766,7 @@ function fillField(fieldInfo, value, predictedField = null) {
             currentYear + yearsUntilGraduation,
             currentYear + yearsUntilGraduation + 1
           ];
-          
+
           // Try to find matching graduation year in options
           for (const gradYear of possibleGraduationYears) {
             const yearStr = String(gradYear);
@@ -715,7 +774,7 @@ function fillField(fieldInfo, value, predictedField = null) {
               const optValue = String(opt.value || '').trim();
               const optLabel = String(opt.label || '').trim();
               return optValue === yearStr || optLabel === yearStr ||
-                     optValue.includes(yearStr) || optLabel.includes(yearStr);
+                optValue.includes(yearStr) || optLabel.includes(yearStr);
             });
             if (yearMatch) {
               valueToMatch = yearStr;
@@ -724,11 +783,11 @@ function fillField(fieldInfo, value, predictedField = null) {
             }
           }
         }
-        
+
         // Find matching option using intelligent matching
         // Validate that the value can actually match a radio option
         const valueStr = String(valueToMatch || '').trim();
-        
+
         // Skip if value is a phone number (10+ digits) and doesn't match any option
         if (/^\d{10,}$/.test(valueStr)) {
           // Check if any option actually contains this number
@@ -741,7 +800,7 @@ function fillField(fieldInfo, value, predictedField = null) {
             return false;
           }
         }
-        
+
         // Skip if value is a long numeric string (>5 digits) that doesn't match any option
         if (/^\d+$/.test(valueStr) && valueStr.length > 5) {
           const hasNumericMatch = fieldInfo.options.some(opt => {
@@ -753,18 +812,18 @@ function fillField(fieldInfo, value, predictedField = null) {
             return false;
           }
         }
-        
+
         const radioMatch = findMatchingOption(fieldInfo.options || [], valueToMatch);
         if (radioMatch) {
           const radioElement = radioMatch.inputElement || radioMatch.element;
-          
+
           // For Google Forms radio buttons
           if (fieldInfo.isGoogleForms) {
             // Click the div container
             if (radioMatch.element && radioMatch.element.getAttribute('role') === 'radio') {
               // Uncheck other options in the group first
-              const container = radioMatch.element.closest('[role="radiogroup"]') || 
-                               radioMatch.element.closest('[role="listitem"]');
+              const container = radioMatch.element.closest('[role="radiogroup"]') ||
+                radioMatch.element.closest('[role="listitem"]');
               if (container) {
                 container.querySelectorAll('[role="radio"]').forEach(radio => {
                   if (radio !== radioMatch.element) {
@@ -774,17 +833,17 @@ function fillField(fieldInfo, value, predictedField = null) {
                   }
                 });
               }
-              
+
               // Check this option
               radioMatch.element.setAttribute('aria-checked', 'true');
               radioMatch.element.click();
-              
+
               // Also check the input if it exists
               if (radioMatch.inputElement) {
                 radioMatch.inputElement.checked = true;
                 radioMatch.inputElement.dispatchEvent(new Event('change', { bubbles: true }));
               }
-              
+
               // Trigger change event on container
               if (container) {
                 container.dispatchEvent(new Event('change', { bubbles: true }));
@@ -803,7 +862,7 @@ function fillField(fieldInfo, value, predictedField = null) {
           const valueStr = String(value).trim();
           const isPhoneNumber = /^\d{10,}$/.test(valueStr);
           const isLongNumeric = /^\d+$/.test(valueStr) && valueStr.length > 5;
-          
+
           // If value is a phone number or long numeric and options are text-based, skip silently
           if ((isPhoneNumber || isLongNumeric) && fieldInfo.options.every(opt => {
             const optValue = String(opt.value || opt.label || '').trim();
@@ -812,7 +871,7 @@ function fillField(fieldInfo, value, predictedField = null) {
             console.warn('[Filleasy] Skipping radio button - numeric value does not match text-based options:', valueStr, 'Field label:', fieldInfo.label);
             return false;
           }
-          
+
           // Improved logging to show actual option values
           const optionDetails = fieldInfo.options.map(opt => ({
             value: opt.value || '',
@@ -820,9 +879,9 @@ function fillField(fieldInfo, value, predictedField = null) {
             element: opt.element ? 'present' : 'missing'
           }));
           console.warn('[Filleasy] No radio match found for value:', value, 'Options:', JSON.stringify(optionDetails, null, 2));
-          
+
           // Try direct numeric/string matching as last resort
-          
+
           // If this is a year field and value is single digit, try year conversion again
           if (isYearField && /^[1-4]$/.test(valueStr) && optionsAreYears) {
             const yearOfStudy = parseInt(valueStr, 10);
@@ -833,7 +892,7 @@ function fillField(fieldInfo, value, predictedField = null) {
               currentYear + yearsUntilGraduation,
               currentYear + yearsUntilGraduation + 1
             ];
-            
+
             // Try each possible graduation year
             for (const gradYear of possibleGraduationYears) {
               const yearStr = String(gradYear);
@@ -849,21 +908,21 @@ function fillField(fieldInfo, value, predictedField = null) {
               }
             }
           }
-          
+
           const directMatch = fieldInfo.options.find(opt => {
             const optValue = String(opt.value || '').trim();
             const optLabel = String(opt.label || '').trim();
             return optValue === valueStr || optLabel === valueStr ||
-                   optValue.includes(valueStr) || optLabel.includes(valueStr) ||
-                   valueStr.includes(optValue) || valueStr.includes(optLabel);
+              optValue.includes(valueStr) || optLabel.includes(valueStr) ||
+              valueStr.includes(optValue) || valueStr.includes(optLabel);
           });
-          
+
           if (directMatch) {
             const radioElement = directMatch.inputElement || directMatch.element;
             if (fieldInfo.isGoogleForms && directMatch.element && directMatch.element.getAttribute('role') === 'radio') {
               // Google Forms radio button
-              const container = directMatch.element.closest('[role="radiogroup"]') || 
-                               directMatch.element.closest('[role="listitem"]');
+              const container = directMatch.element.closest('[role="radiogroup"]') ||
+                directMatch.element.closest('[role="listitem"]');
               if (container) {
                 container.querySelectorAll('[role="radio"]').forEach(radio => {
                   if (radio !== directMatch.element) {
@@ -909,8 +968,8 @@ function fillField(fieldInfo, value, predictedField = null) {
         let dropdownValueToMatch = value;
         const dropdownFieldLabel = fieldInfo.label || '';
         const isDropdownYearField = /\b(year|graduation|passing|completion)\b/i.test(dropdownFieldLabel) ||
-                                   predictedField === 'year' || predictedField === 'yearOfStudy';
-        
+          predictedField === 'year' || predictedField === 'yearOfStudy';
+
         // Get options - handle both standard select and Google Forms dropdowns
         let selectOptions = [];
         if (element.tagName === 'SELECT') {
@@ -923,16 +982,16 @@ function fillField(fieldInfo, value, predictedField = null) {
             element: opt.element
           }));
         }
-        
+
         // Check if options are all 4-digit years
         const dropdownOptionsAreYears = selectOptions.length > 0 &&
           selectOptions.every(opt => {
             const optValue = String(opt.value || opt.text || '').trim();
             return /^\d{4}$/.test(optValue);
           });
-        
+
         const isDropdownYear = isDropdownYearField || dropdownOptionsAreYears;
-        
+
         // Convert year of study to graduation year if needed
         if (isDropdownYear && /^[1-4]$/.test(String(value).trim()) && dropdownOptionsAreYears) {
           const yearOfStudy = parseInt(String(value).trim(), 10);
@@ -943,7 +1002,7 @@ function fillField(fieldInfo, value, predictedField = null) {
             currentYear + yearsUntilGraduation,
             currentYear + yearsUntilGraduation + 1
           ];
-          
+
           // Try to find matching graduation year in options
           for (const gradYear of possibleGraduationYears) {
             const yearStr = String(gradYear);
@@ -951,7 +1010,7 @@ function fillField(fieldInfo, value, predictedField = null) {
               const optValue = String(opt.value || '').trim();
               const optText = String(opt.text || '').trim();
               return optValue === yearStr || optText === yearStr ||
-                     optValue.includes(yearStr) || optText.includes(yearStr);
+                optValue.includes(yearStr) || optText.includes(yearStr);
             });
             if (yearMatch) {
               dropdownValueToMatch = yearStr;
@@ -960,20 +1019,20 @@ function fillField(fieldInfo, value, predictedField = null) {
             }
           }
         }
-        
+
         // For Google Forms dropdowns (contenteditable)
         if (fieldInfo.isGoogleForms) {
           const valueStr = String(dropdownValueToMatch).trim();
-          
+
           // Try immediate filling if options are available
           if (selectOptions.length > 0) {
             const filled = fillGoogleFormsDropdown(element, fieldInfo, valueStr, selectOptions);
             if (filled) return true;
           }
-          
+
           // If options weren't available initially, click to open dropdown and get options
           const container = fieldInfo.dropdownContainer || element.closest('[role="listbox"], [role="combobox"]') || element;
-          
+
           // Click to open dropdown
           try {
             if (element.click) {
@@ -986,15 +1045,15 @@ function fillField(fieldInfo, value, predictedField = null) {
           } catch (e) {
             console.warn('[Filleasy] Error clicking dropdown:', e);
           }
-          
+
           // Wait for dropdown to open and try to find options
           setTimeout(() => {
             const newOptions = [];
-            
+
             // Look for options in the container or document
             const searchContainer = container || document;
             const optionElements = searchContainer.querySelectorAll('[role="option"], .freebirdFormviewerViewItemsItemItem, [data-value], .exportSelectPopup [role="option"]');
-            
+
             optionElements.forEach(opt => {
               const optText = opt.textContent?.trim() || opt.getAttribute('aria-label') || opt.getAttribute('data-value') || '';
               if (optText && optText.length > 0) {
@@ -1005,7 +1064,7 @@ function fillField(fieldInfo, value, predictedField = null) {
                 });
               }
             });
-            
+
             // If still no options, try looking for select element
             if (newOptions.length === 0) {
               const selectElement = container.querySelector('select');
@@ -1022,7 +1081,7 @@ function fillField(fieldInfo, value, predictedField = null) {
                 });
               }
             }
-            
+
             if (newOptions.length > 0) {
               const filled = fillGoogleFormsDropdown(element, fieldInfo, valueStr, newOptions);
               if (!filled) {
@@ -1048,11 +1107,11 @@ function fillField(fieldInfo, value, predictedField = null) {
               element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
             }
           }, 300);
-          
+
           // Return true to indicate we're attempting to fill (async)
           return true;
         }
-        
+
         // For standard select dropdowns, try to find matching option using intelligent matching
         if (element.tagName === 'SELECT') {
           const matchedOption = findMatchingSelectOption(selectOptions, dropdownValueToMatch, predictedField);
@@ -1074,12 +1133,12 @@ function fillField(fieldInfo, value, predictedField = null) {
               const optValue = String(opt.value || '').trim();
               const optText = String(opt.text || opt.textContent || '').trim();
               return optValue === valueStr || optText === valueStr ||
-                     optValue.toLowerCase() === valueStr.toLowerCase() ||
-                     optText.toLowerCase() === valueStr.toLowerCase() ||
-                     optValue.includes(valueStr) || optText.includes(valueStr) ||
-                     valueStr.includes(optValue) || valueStr.includes(optText);
+                optValue.toLowerCase() === valueStr.toLowerCase() ||
+                optText.toLowerCase() === valueStr.toLowerCase() ||
+                optValue.includes(valueStr) || optText.includes(valueStr) ||
+                valueStr.includes(optValue) || valueStr.includes(optText);
             });
-            
+
             if (directMatch) {
               element.value = directMatch.value || directMatch.text;
               element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
@@ -1158,18 +1217,18 @@ function normalizeString(str) {
  */
 function fillGoogleFormsDropdown(element, fieldInfo, valueStr, selectOptions) {
   if (!element || !valueStr) return false;
-  
+
   // Try to find matching option
   const googleMatch = selectOptions.find(opt => {
     const optValue = String(opt.value || '').trim();
     const optText = String(opt.text || opt.label || '').trim();
     return optValue === valueStr || optText === valueStr ||
-           optValue.toLowerCase() === valueStr.toLowerCase() ||
-           optText.toLowerCase() === valueStr.toLowerCase() ||
-           optValue.includes(valueStr) || optText.includes(valueStr) ||
-           valueStr.includes(optValue) || valueStr.includes(optText);
+      optValue.toLowerCase() === valueStr.toLowerCase() ||
+      optText.toLowerCase() === valueStr.toLowerCase() ||
+      optValue.includes(valueStr) || optText.includes(valueStr) ||
+      valueStr.includes(optValue) || valueStr.includes(optText);
   });
-  
+
   if (googleMatch && googleMatch.element) {
     // Click the option element
     try {
@@ -1188,7 +1247,7 @@ function fillGoogleFormsDropdown(element, fieldInfo, valueStr, selectOptions) {
       console.warn('[Filleasy] Error clicking dropdown option:', e);
     }
   }
-  
+
   // Try using findMatchingOption for better matching
   if (selectOptions.length > 0) {
     const optionObjects = selectOptions.map(opt => ({
@@ -1197,7 +1256,7 @@ function fillGoogleFormsDropdown(element, fieldInfo, valueStr, selectOptions) {
       label: opt.label || opt.value || '',
       inputElement: null
     }));
-    
+
     const matchedOption = findMatchingOption(optionObjects, valueStr);
     if (matchedOption && matchedOption.element) {
       try {
@@ -1216,7 +1275,7 @@ function fillGoogleFormsDropdown(element, fieldInfo, valueStr, selectOptions) {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -1232,12 +1291,12 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
   if (!fieldInfo.options || !profileValue) return null;
 
   const normalizedProfile = normalizeString(profileValue);
-  
+
   // Enhanced College name matching with fuzzy matching
   if (predictedField === 'collegeName' || predictedField === 'universityName') {
     // Extract key words from profile value (e.g., "Pimpri Chinchwad College of Engineering")
     const profileWords = normalizedProfile.split(/\s+/).filter(w => w.length > 3);
-    
+
     // College name patterns and their full names
     const collegePatterns = {
       'pccoe': {
@@ -1260,11 +1319,11 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
         fullNames: ["Pimpri Chinchwad Education Trust's NCER"]
       }
     };
-    
+
     // Find best matching college pattern
     let bestMatch = null;
     let bestScore = 0;
-    
+
     for (const [key, pattern] of Object.entries(collegePatterns)) {
       let score = 0;
       // Count matching keywords
@@ -1273,66 +1332,66 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
           score += keyword.length; // Longer keywords get more weight
         }
       }
-      
+
       if (score > bestScore) {
         bestScore = score;
         bestMatch = pattern;
       }
     }
-    
+
     // If we found a match, find the best option
     if (bestMatch && bestScore > 0) {
       let bestOption = null;
       let bestOptionScore = 0;
-      
+
       for (const opt of fieldInfo.options) {
         const optValue = normalizeString(opt.value || opt.label || '');
         let optionScore = 0;
-        
+
         // Check if option matches any full name pattern
         for (const fullName of bestMatch.fullNames) {
           const fullNameNormalized = normalizeString(fullName);
           // Count common words
           const optWords = optValue.split(/\s+/);
           const fullNameWords = fullNameNormalized.split(/\s+/);
-          
+
           for (const word of optWords) {
             if (fullNameWords.includes(word) && word.length > 3) {
               optionScore += word.length;
             }
           }
         }
-        
+
         // Also check keyword matching
         for (const keyword of bestMatch.keywords) {
           if (optValue.includes(keyword)) {
             optionScore += keyword.length * 2; // Keywords are more important
           }
         }
-        
+
         if (optionScore > bestOptionScore) {
           bestOptionScore = optionScore;
           bestOption = opt.value || opt.label;
         }
       }
-      
+
       if (bestOption) {
         return bestOption;
       }
     }
-    
+
     // Fallback: word-based matching
     for (const opt of fieldInfo.options) {
       const optValue = normalizeString(opt.value || opt.label || '');
       const optWords = optValue.split(/\s+/).filter(w => w.length > 3);
       let matchCount = 0;
-      
+
       for (const word of profileWords) {
         if (optWords.some(optWord => optWord.includes(word) || word.includes(optWord))) {
           matchCount++;
         }
       }
-      
+
       // If at least 2 significant words match, consider it a match
       if (matchCount >= 2) {
         return opt.value || opt.label;
@@ -1349,7 +1408,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
       'mechanical': ['mech', 'mechanical', 'mechanical engineering'],
       'electronics': ['etc', 'e&tc', 'ece', 'electronics', 'electronics and telecommunication']
     };
-    
+
     for (const [key, variations] of Object.entries(branchMappings)) {
       if (variations.some(v => normalizedProfile.includes(normalizeString(v)))) {
         for (const opt of fieldInfo.options) {
@@ -1368,7 +1427,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
       'male': ['male', 'm'],
       'female': ['female', 'f', 'fem']
     };
-    
+
     for (const [key, variations] of Object.entries(genderMap)) {
       if (variations.some(v => normalizedProfile.includes(normalizeString(v)))) {
         for (const opt of fieldInfo.options) {
@@ -1388,7 +1447,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
       'it sales': ['it sales', 'itsales', 'international it sales', 'business development executive'],
       'intern': ['intern', 'internship', 'sales intern']
     };
-    
+
     for (const [key, variations] of Object.entries(roleMappings)) {
       if (variations.some(v => normalizedProfile.includes(normalizeString(v)))) {
         for (const opt of fieldInfo.options) {
@@ -1418,7 +1477,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
         }
       }
     }
-    
+
     // If profile value is a single digit (1-4), convert to graduation year
     const singleDigitMatch = String(profileValue).trim().match(/^[1-4]$/);
     if (singleDigitMatch) {
@@ -1430,7 +1489,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
         currentYear + yearsUntilGraduation,
         currentYear + yearsUntilGraduation + 1
       ];
-      
+
       // Try to find matching graduation year in options
       for (const gradYear of possibleGraduationYears) {
         const yearStr = String(gradYear);
@@ -1438,7 +1497,7 @@ function findExactDropdownMatch(fieldInfo, profileValue, predictedField) {
           const optValue = String(opt.value || '').trim();
           const optLabel = String(opt.label || '').trim();
           if (optValue === yearStr || optLabel === yearStr ||
-              optValue.includes(yearStr) || optLabel.includes(yearStr)) {
+            optValue.includes(yearStr) || optLabel.includes(yearStr)) {
             return opt.value || opt.label;
           }
         }
@@ -1476,7 +1535,7 @@ function findMatchingOption(options, profileValue) {
   // Convert to string for consistent comparison
   const profileValueStr = String(profileValue).trim();
   const normalizedProfile = normalizeString(profileValueStr);
-  
+
   // Priority 0: Direct string/numeric match (before normalization)
   // This handles cases where value is "4" and option is "4" or "4th" etc.
   let match = options.find(opt => {
@@ -1499,9 +1558,9 @@ function findMatchingOption(options, profileValue) {
     return false;
   });
   if (match) return match;
-  
+
   // Priority 1: Exact match (case-insensitive, normalized)
-  match = options.find(opt => 
+  match = options.find(opt =>
     normalizeString(opt.value) === normalizedProfile ||
     normalizeString(opt.label) === normalizedProfile
   );
@@ -1511,10 +1570,10 @@ function findMatchingOption(options, profileValue) {
   match = options.find(opt => {
     const optValue = normalizeString(opt.value);
     const optLabel = normalizeString(opt.label);
-    return normalizedProfile.includes(optValue) || 
-           optValue.includes(normalizedProfile) ||
-           normalizedProfile.includes(optLabel) || 
-           optLabel.includes(normalizedProfile);
+    return normalizedProfile.includes(optValue) ||
+      optValue.includes(normalizedProfile) ||
+      normalizedProfile.includes(optLabel) ||
+      optLabel.includes(normalizedProfile);
   });
   if (match) return match;
 
@@ -1542,7 +1601,7 @@ function findMatchingSelectOption(options, profileValue, predictedField = null) 
   // Convert to string for consistent comparison
   const profileValueStr = String(profileValue).trim();
   const normalizedProfile = normalizeString(profileValueStr);
-  
+
   // Convert options to objects for easier matching
   const optionObjects = options.map(opt => ({
     element: opt,
@@ -1577,7 +1636,7 @@ function findMatchingSelectOption(options, profileValue, predictedField = null) 
   // Use the same intelligent matching logic as radio buttons
   const intelligentMatch = findMatchingOption(optionObjects, profileValue);
   if (intelligentMatch) return intelligentMatch.element;
-  
+
   // Fallback: try findExactDropdownMatch if predictedField is available
   if (predictedField) {
     const fieldInfo = {
@@ -1591,7 +1650,7 @@ function findMatchingSelectOption(options, profileValue, predictedField = null) 
         const optValue = String(opt.value || '').trim();
         const optText = String(opt.text || '').trim();
         return optValue === exactMatch || optText === exactMatch ||
-               optValue.includes(exactMatch) || optText.includes(exactMatch);
+          optValue.includes(exactMatch) || optText.includes(exactMatch);
       });
       if (matchedOpt) return matchedOpt;
     }
@@ -1610,7 +1669,7 @@ function findFuzzyMatch(options, normalizedProfile) {
     'male': ['m', 'male'],
     'female': ['f', 'female', 'fem'],
     'other': ['o', 'other', 'prefernottosay'],
-    
+
     // Branches
     'computerscience': ['cs', 'cse', 'computer science', 'computer science engineering'],
     'informationtechnology': ['it', 'information technology'],
@@ -1619,7 +1678,7 @@ function findFuzzyMatch(options, normalizedProfile) {
     'electricalengineering': ['ee', 'ece', 'electrical', 'electrical engineering', 'electronics'],
     'electronicsengineering': ['ece', 'ec', 'electronics', 'electronics engineering'],
     'chemicalengineering': ['che', 'ch', 'chemical', 'chemical engineering'],
-    
+
     // Common college name patterns
     'institute': ['inst', 'institute', 'iit', 'nit', 'iim'],
     'university': ['univ', 'university', 'uni'],
@@ -1635,7 +1694,7 @@ function findFuzzyMatch(options, normalizedProfile) {
           const optValue = normalizeString(opt.value);
           const optLabel = normalizeString(opt.label);
           return optValue.includes(variation) || variation.includes(optValue) ||
-                 optLabel.includes(variation) || variation.includes(optLabel);
+            optLabel.includes(variation) || variation.includes(optLabel);
         });
         if (match) return match;
       }
@@ -1650,7 +1709,7 @@ function findFuzzyMatch(options, normalizedProfile) {
           const optValue = normalizeString(opt.value);
           const optLabel = normalizeString(opt.label);
           return optValue.includes(key) || key.includes(optValue) ||
-                 optLabel.includes(key) || key.includes(optLabel);
+            optLabel.includes(key) || key.includes(optLabel);
         });
         if (match) return match;
       }
@@ -1666,7 +1725,7 @@ function findFuzzyMatch(options, normalizedProfile) {
 function findWordMatch(options, normalizedProfile) {
   // Extract key words from profile value (words with 3+ characters)
   const profileWords = normalizedProfile.split(/\s+/).filter(word => word.length >= 3);
-  
+
   let bestMatch = null;
   let bestScore = 0;
 
@@ -1674,14 +1733,14 @@ function findWordMatch(options, normalizedProfile) {
     const optValue = normalizeString(opt.value);
     const optLabel = normalizeString(opt.label);
     const optText = optValue + ' ' + optLabel;
-    
+
     let score = 0;
     for (const word of profileWords) {
       if (optText.includes(word)) {
         score += word.length; // Longer words get more weight
       }
     }
-    
+
     if (score > bestScore) {
       bestScore = score;
       bestMatch = opt;

@@ -30,7 +30,11 @@
         "https://docs.google.com/forms/*",
         "https://forms.gle/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "lib/field-mapping-cache.js",
+        "lib/ml-field-matcher.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -40,11 +44,8 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["lib/*"],
-      "matches": ["<all_urls>"]
-    }
-  ]
-  
+  "author": {
+    "email": "rameshwarmortale1104@gmail.com"
+  },
+  "web_accessible_resources": []
 }
